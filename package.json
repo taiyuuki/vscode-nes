@@ -3,7 +3,7 @@
   "displayName": "红白机",
   "publisher": "taiyuuki",
   "version": "0.0.1",
-  "description": "NES emulator for vscode",
+  "description": "红白机模拟器，支持手柄，支持保存、读取。",
   "main": "./dist/index.js",
   "repository": {
     "type": "git",
@@ -11,15 +11,21 @@
   },
   "bugs": "https://github.com/taiyuuki/vscode-nes/issues",
   "homepage": "https://github.com/taiyuuki/vscode-nes#readme",
+  "icon": "res/icon.png",
+  "keyword": [
+    "NES",
+    "红白机",
+    "小霸王",
+    "模拟器",
+    "Emulator"
+  ],
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "*"
-  ],
+  "activationEvents": [],
   "contributes": {
     "commands": [
       {
@@ -83,24 +89,116 @@
           "type": "array",
           "default": [
             [
-              "魂斗罗",
-              "https://taiyuuki.github.io/nes-vue/Contra.nes"
+              "七宝奇谋",
+              "https://taiyuuki.github.io/vscode-nes/roms/七宝奇谋.nes"
             ],
             [
-              "唐老鸭梦冒险2",
-              "https://taiyuuki.github.io/nes-vue/Duck Tales 2.nes"
+              "中东战争",
+              "https://taiyuuki.github.io/vscode-nes/roms/中东战争.nes"
+            ],
+            [
+              "双截龙",
+              "https://taiyuuki.github.io/vscode-nes/roms/双截龙.nes"
+            ],
+            [
+              "双截龙2-复仇",
+              "https://taiyuuki.github.io/vscode-nes/roms/双截龙2-复仇.nes"
+            ],
+            [
+              "双截龙3-神秘魔石之谜",
+              "https://taiyuuki.github.io/vscode-nes/roms/双截龙3-神秘魔石之谜.nes"
+            ],
+            [
+              "古巴战士",
+              "https://taiyuuki.github.io/vscode-nes/roms/古巴战士.nes"
+            ],
+            [
+              "唐老鸭历险记2",
+              "https://taiyuuki.github.io/vscode-nes/roms/唐老鸭历险记2.nes"
+            ],
+            [
+              "坦克1990",
+              "https://taiyuuki.github.io/vscode-nes/roms/坦克1990.nes"
+            ],
+            [
+              "影子传说",
+              "https://taiyuuki.github.io/vscode-nes/roms/影子传说.nes"
+            ],
+            [
+              "忍者龙剑传2-暗黑邪神剑",
+              "https://taiyuuki.github.io/vscode-nes/roms/忍者龙剑传2-暗黑邪神剑.nes"
+            ],
+            [
+              "忍者龙剑传3-黄泉方舟",
+              "https://taiyuuki.github.io/vscode-nes/roms/忍者龙剑传3-黄泉方舟.nes"
+            ],
+            [
+              "快打旋风",
+              "https://taiyuuki.github.io/vscode-nes/roms/快打旋风.nes"
+            ],
+            [
+              "恶魔城",
+              "https://taiyuuki.github.io/vscode-nes/roms/恶魔城.nes"
+            ],
+            [
+              "成龙踢馆",
+              "https://taiyuuki.github.io/vscode-nes/roms/成龙踢馆.nes"
+            ],
+            [
+              "挖金",
+              "https://taiyuuki.github.io/vscode-nes/roms/挖金.nes"
+            ],
+            [
+              "松鼠大作战",
+              "https://taiyuuki.github.io/vscode-nes/roms/松鼠大作战.nes"
             ],
             [
               "松鼠大作战2",
-              "https://taiyuuki.github.io/nes-vue/Chip n Dale Rescue Rangers 2.nes"
+              "https://taiyuuki.github.io/vscode-nes/roms/松鼠大作战2.nes"
+            ],
+            [
+              "洛克人",
+              "https://taiyuuki.github.io/vscode-nes/roms/洛克人.nes"
+            ],
+            [
+              "洛克人2-Dr",
+              "https://taiyuuki.github.io/vscode-nes/roms/洛克人2-Dr.nes"
+            ],
+            [
+              "洛克人3-Dr",
+              "https://taiyuuki.github.io/vscode-nes/roms/洛克人3-Dr.nes"
+            ],
+            [
+              "烈火92",
+              "https://taiyuuki.github.io/vscode-nes/roms/烈火92.nes"
+            ],
+            [
+              "赤影战士",
+              "https://taiyuuki.github.io/vscode-nes/roms/赤影战士.nes"
+            ],
+            [
+              "超级玛利欧兄弟3",
+              "https://taiyuuki.github.io/vscode-nes/roms/超级玛利欧兄弟3.nes"
             ],
             [
               "超级马里奥兄弟",
-              "https://taiyuuki.github.io/nes-vue/Super Mario Bros.nes"
+              "https://taiyuuki.github.io/vscode-nes/roms/超级马里奥兄弟.nes"
             ],
             [
-              "超级马里奥兄弟3",
-              "https://taiyuuki.github.io/nes-vue/Super Mario Bros 3.nes"
+              "超级魂斗罗",
+              "https://taiyuuki.github.io/vscode-nes/roms/超级魂斗罗.nes"
+            ],
+            [
+              "马戏团",
+              "https://taiyuuki.github.io/vscode-nes/roms/马戏团.nes"
+            ],
+            [
+              "高桥名人的冒险岛",
+              "https://taiyuuki.github.io/vscode-nes/roms/高桥名人的冒险岛.nes"
+            ],
+            [
+              "魂斗罗",
+              "https://taiyuuki.github.io/vscode-nes/roms/魂斗罗.nes"
             ]
           ],
           "description": "游戏ROM"
@@ -113,7 +211,7 @@
     "dev": "tsup --watch",
     "build": "tsup",
     "bump:patch": "bump patch",
-    "package": "vsce package --no-dependencies",
+    "package": "npx vsce package --no-dependencies",
     "publish": "vsce publish",
     "test": "vitest"
   },
