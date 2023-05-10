@@ -213,5 +213,5 @@ const gm = new GamepadManager()
 gm.frame()
 
 if (inBrowser()) {
-  loadROM('./roms/超级魂斗罗 (v2.0) (简).nes')
+  loadROM('./roms/超级魂斗罗.nes')
 }
