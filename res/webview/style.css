@@ -1,0 +1,102 @@
+body {
+  /* background-color: #fff; */
+  font-size: 18px;
+}
+
+.hidden {
+  display: none;
+}
+
+#title {
+  margin: 10px;
+  text-align: center;
+  font-weight: bold;
+}
+
+#container {
+  width: 512px;
+  height: 480px;
+  margin: 0 auto;
+  background-color: #000;
+  position: relative;
+}
+
+#mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+}
+
+#start, #loading {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: fit-content;
+  color: #fff;
+}
+
+#start:hover {
+  cursor: pointer;
+  color: #66ccff;
+}
+
+dot {
+  display: inline-block; 
+  height: 1em; line-height: 1;
+  text-align: left;
+  vertical-align: -.25em;
+  overflow: hidden;
+}
+dot::before {
+  display: block;
+  content: '...\A..\A.';
+  white-space: pre-wrap;   /* 也可以是white-space: pre */
+  animation: dot 3s infinite step-start both;
+}
+@keyframes dot {
+  33% { transform: translateY(-2em); }
+  66% { transform: translateY(-1em); }
+}
+
+#fps {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+}
+
+#cvs {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+#options {
+  font-size: 14px;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#options > * {
+  margin: 0 10px;
+  opacity: 0.6;
+}
+
+#options > *:hover {
+  opacity: 1;
+}
+
+#controls {
+  margin: 20px auto;
+  width: fit-content;
+}
+
+#controls td {
+  width: 8rem;
+  text-align: center;
+}

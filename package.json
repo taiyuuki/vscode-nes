@@ -1,0 +1,134 @@
+{
+  "name": "vscode-nes",
+  "displayName": "红白机",
+  "publisher": "taiyuuki",
+  "version": "0.0.1",
+  "description": "NES emulator for vscode",
+  "main": "./dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/taiyuuki/vscode-nes"
+  },
+  "bugs": "https://github.com/taiyuuki/vscode-nes/issues",
+  "homepage": "https://github.com/taiyuuki/vscode-nes#readme",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "vscodeNes.add",
+        "title": "添加本地ROM",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "vscodeNes.remove",
+        "title": "删除",
+        "icon": "$(trash)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vscode-nes",
+          "title": "红白机模拟器",
+          "icon": "res/gamepad.svg"
+        }
+      ]
+    },
+    "views": {
+      "vscode-nes": [
+        {
+          "id": "remoteROM",
+          "name": "远程ROM"
+        },
+        {
+          "id": "localROM",
+          "name": "本地ROM"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "vscodeNes.add",
+          "when": "view == localROM",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "vscodeNes.remove",
+          "when": "view == localROM"
+        },
+        {
+          "command": "vscodeNes.remove",
+          "when": "view == localROM",
+          "group": "inline",
+          "title": "删除ROM",
+          "icon": "$(trash)"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "红白机模拟器",
+      "properties": {
+        "vscodeNes.romPath": {
+          "type": "array",
+          "default": [
+            [
+              "魂斗罗",
+              "https://taiyuuki.github.io/nes-vue/Contra.nes"
+            ],
+            [
+              "唐老鸭梦冒险2",
+              "https://taiyuuki.github.io/nes-vue/Duck Tales 2.nes"
+            ],
+            [
+              "松鼠大作战2",
+              "https://taiyuuki.github.io/nes-vue/Chip n Dale Rescue Rangers 2.nes"
+            ],
+            [
+              "超级马里奥兄弟",
+              "https://taiyuuki.github.io/nes-vue/Super Mario Bros.nes"
+            ],
+            [
+              "超级马里奥兄弟3",
+              "https://taiyuuki.github.io/nes-vue/Super Mario Bros 3.nes"
+            ]
+          ],
+          "description": "游戏ROM"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint --ext .js,.ts ./",
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "bump:patch": "bump patch",
+    "package": "vsce package --no-dependencies",
+    "publish": "vsce publish",
+    "test": "vitest"
+  },
+  "keywords": [],
+  "author": "taiyuuki <taiyuuki@qq.com>",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@taiyuuki/eslint-config-ts": "^0.0.5",
+    "@types/node": "^18.11.18",
+    "@types/vscode": "^1.74.0",
+    "@vscode/test-electron": "^2.2.2",
+    "eslint": "^8.10.0",
+    "tsup": "^6.4.0"
+  }
+}
