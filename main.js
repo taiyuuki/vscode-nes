@@ -133,7 +133,7 @@ addKeyboardEvent(nes)
 
 // 触发错误消息
 function emitError(message) {
-  if (inBrowser()) {
+  if (!inBrowser()) {
     vscode.postMessage({
       code: 404,
       type: 'error',
