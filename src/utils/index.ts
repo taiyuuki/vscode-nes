@@ -45,9 +45,6 @@ export function saveLocalRoms(files: Uri[]) {
   const savePath = join(userPath, 'roms')
   ensureExists(userPath)
   ensureExists(savePath)
-  if (!_pathExists(userPath)) {
-    mkdirSync(userPath)
-  }
   files.forEach(file => {
     const filePath = join(userPath, 'roms', basename(file.fsPath))
     localRoms[basename(file.fsPath)] = filePath

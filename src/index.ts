@@ -1,4 +1,3 @@
-// import { join } from 'path'
 import * as vscode from 'vscode'
 import { getHtml, isUrl, removeRom, saveLocalRoms } from './utils'
 import { RemoteRomTree, LocalRomTree } from './romTree'

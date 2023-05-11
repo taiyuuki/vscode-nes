@@ -2,7 +2,7 @@
   "name": "vscode-nes",
   "displayName": "红白机",
   "publisher": "taiyuuki",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "红白机模拟器，支持手柄，支持保存、读取。",
   "main": "./dist/index.js",
   "repository": {
@@ -12,7 +12,7 @@
   "bugs": "https://github.com/taiyuuki/vscode-nes/issues",
   "homepage": "https://github.com/taiyuuki/vscode-nes#readme",
   "icon": "res/icon.png",
-  "keyword": [
+  "keywords": [
     "NES",
     "红白机",
     "小霸王",
@@ -215,7 +215,6 @@
     "publish": "vsce publish",
     "test": "vitest"
   },
-  "keywords": [],
   "author": "taiyuuki <taiyuuki@qq.com>",
   "license": "MIT",
   "files": [
