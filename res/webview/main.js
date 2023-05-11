@@ -41,6 +41,7 @@ slt.addEventListener('change', () => {
   container.style.width = slt.value + 'px'
   container.style.height = slt.value * 240 / 256 + 'px'
   setTimeout(() => {
+    slt.blur()
     fitInParent(cvs)
   }, 50);
 })
