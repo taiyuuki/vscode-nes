@@ -37,13 +37,17 @@ const loading = document.getElementById('loading')
 
 // 选择分辨率
 const slt = document.getElementById('rsl')
-slt.addEventListener('change', () => {
+function toggleSolution() {
   container.style.width = slt.value + 'px'
   container.style.height = slt.value * 240 / 256 + 'px'
   setTimeout(() => {
     slt.blur()
     fitInParent(cvs)
-  }, 50);
+  }, 50)
+}
+slt.addEventListener('change', () => {
+  toggleSolution()
+  saveConfig()
 })
 
 // 显示FPS
@@ -54,7 +58,7 @@ function getFPS() {
     fps.textContent = nes.getFPS()?.toFixed(2) ?? '0.00'
   }, 1000)
 }
-showFps.addEventListener('change', () => {
+function toggleShowFPS() {
   if (showFps.checked) {
     fps.style.display = 'block'
     getFPS()
@@ -62,12 +66,17 @@ showFps.addEventListener('change', () => {
     clearInterval(fpsInterval)
     fps.style.display = 'none'
   }
+}
+showFps.addEventListener('change', () => {
+  toggleShowFPS()
+  saveConfig()
 })
 
 // 剪切画面边缘
 const clipSize = document.getElementById('clipSize')
 clipSize.addEventListener('change', () => {
   nes.ppu.clipToTvSize = clipSize.checked
+  saveConfig()
 })
 
 // 游戏暂停
@@ -90,7 +99,7 @@ pauseBtn.addEventListener('click', () => {
 // 游戏静音
 let isMut = false
 const muteBtn = document.getElementById('mute')
-muteBtn.addEventListener('click', () => {
+function toggleMut() {
   if (isMut) {
     setGain(100)
     muteBtn.value = '静音'
@@ -98,7 +107,11 @@ muteBtn.addEventListener('click', () => {
     setGain(0)
     muteBtn.value = '恢复'
   }
+}
+muteBtn.addEventListener('click', () => {
   isMut = !isMut
+  toggleMut()
+  saveConfig()
 })
 
 // 游戏停止
@@ -251,6 +264,31 @@ loadBtn.addEventListener('click', () => {
   }
 })
 
+// 保存配置
+function saveConfig() {
+  localStorage.setItem('config', JSON.stringify({
+    showFps: showFps.checked,
+    isMut,
+    slt: slt.value,
+    clipSize: clipSize.checked,
+  }))
+}
+
+// 读取配置
+function loadConfig() {
+  const data = localStorage.getItem('config')
+  if (data) {
+    const config = JSON.parse(data)
+    showFps.checked = config.showFps
+    isMut = config.isMut
+    clipSize.checked = config.clipSize
+    slt.value = config.slt
+    toggleMut()
+    toggleSolution()
+    toggleShowFPS()
+  }
+}
+
 window.addEventListener('message', (e) => {
   showEl(mask)// 显示遮罩
   hiddenEl(startBtn)// 隐藏开始按钮
@@ -265,6 +303,7 @@ window.addEventListener('message', (e) => {
 
 const gm = new GamepadManager()
 gm.frame()
+loadConfig()
 
 if (inBrowser()) {
   loadROM('./roms/超级魂斗罗 (v2.0) (简).nes')
