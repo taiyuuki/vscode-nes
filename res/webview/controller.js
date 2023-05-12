@@ -184,7 +184,7 @@ class GamepadManager {
    * 推动摇杆
    * @param {*} player - 玩家
    * @param {*} check - 推动状态
-   * @param {*} aindex - 摇杆放向索引
+   * @param {*} aindex - 摇杆方向索引
    * @param {*} bindex - 按键索引
    */
   axesHandler(player, check, aindex, bindex) {
