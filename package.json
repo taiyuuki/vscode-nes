@@ -89,6 +89,34 @@
           "type": "array",
           "default": [
             [
+              "宇宙巡航机",
+              "https://taiyuuki.github.io/vscode-nes/roms/宇宙巡航机.nes"
+            ],
+            [
+              "沙罗曼蛇",
+              "https://taiyuuki.github.io/vscode-nes/roms/沙罗曼蛇.nes"
+            ],
+            [
+              "Q版沙罗曼蛇",
+              "https://taiyuuki.github.io/vscode-nes/roms/Q版沙罗曼蛇.nes"
+            ],
+            [
+              "火之鸟凤凰篇",
+              "https://taiyuuki.github.io/vscode-nes/roms/火之鸟凤凰篇.nes"
+            ],
+            [
+              "光之神话",
+              "https://taiyuuki.github.io/vscode-nes/roms/光之神话.nes"
+            ],
+            [
+              "上尉密令(美国队长)",
+              "https://taiyuuki.github.io/vscode-nes/roms/上尉密令(美国队长).nes"
+            ],
+            [
+              "吞食天地 (简)",
+              "https://taiyuuki.github.io/vscode-nes/roms/吞食天地 (简).nes"
+            ],
+            [
               "七宝奇谋",
               "https://taiyuuki.github.io/vscode-nes/roms/七宝奇谋.nes"
             ],
