@@ -82,7 +82,7 @@ clipSize.addEventListener('change', () => {
 // 游戏暂停
 let isPause = false
 const pauseBtn = document.getElementById('pause')
-pauseBtn.addEventListener('click', () => {
+function togglePause() {
   if (!romBuffer) {
     return
   }
@@ -94,7 +94,8 @@ pauseBtn.addEventListener('click', () => {
     pauseBtn.value = '继续'
   }
   isPause = !isPause
-})
+}
+pauseBtn.addEventListener('click', togglePause)
 
 // 游戏静音
 let isMut = false
@@ -125,6 +126,10 @@ function stop() {
   clearInterval(fpsInterval)
   nes.reset()
   isStop = true
+}
+
+function gameId() {
+  return romBuffer.substring(3, 20)
 }
 
 // 游戏重置
@@ -206,6 +211,16 @@ function loadROM(url) {
       hiddenEl(loading)// 隐藏加载中
       showEl(startBtn)// 显示开始按钮
       inBrowser() && start()
+      const data = localStorage.getItem(gameId())
+      if (data) {
+        const json = JSON.parse(data)
+        showEl(loadBtn)
+        showEl(removeBtn)
+        const img = new Image()
+        saveDataMsg.textContent = json.time
+        img.src = json.dataURL
+        saveImage.appendChild(img)
+      }
     }
     else {
       emitError(`${title.textContent}加载失败，地址可能已经失效。`)
@@ -214,54 +229,146 @@ function loadROM(url) {
   req.send()
 }
 
-// 保存游戏
 const saveBtn = document.getElementById('save')
+const loadBtn = document.getElementById('load')
+const removeBtn = document.getElementById('remove')
+const saveImage = document.getElementById('save-image')
+const saveDataMsg = document.getElementById('save-data-message')
+
+// 没有存档时隐藏部分按钮
+function initSaveData() {
+  hiddenEl(loadBtn)
+  hiddenEl(removeBtn)
+  saveImage.innerHTML = ''
+  saveDataMsg.textContent = '暂无存档'
+}
+
+// 保存游戏
 let saveTimeout = null
-saveBtn.addEventListener('click', () => {
-  if (nes.cpu.irqRequested && !isStop && !isPause) {
-    const data = JSON.stringify({ data: nes.toJSON(), name: title.textContent })
-    localStorage.setItem('nes', data)
-    saveBtn.value = '已存'
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
+function saved() {
+  if (cvs) {
+    const img = new Image()
+    img.src = cvs.toDataURL('image/png')
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 48
+      canvas.height = 45
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, 48, 45)
+      const dataURL = canvas.toDataURL('image/png')
+      const resizeImage = new Image()
+      saveBtn.textContent = '已存'
+      saveDataMsg.textContent = `保存于 ${getCurrentTime()}`
+      resizeImage.src = dataURL
+      saveImage.innerHTML = ''
+      saveImage.appendChild(resizeImage)
+      localStorage.setItem(gameId(), JSON.stringify({
+        dataURL,
+        time: saveDataMsg.textContent
+      }))
     }
-    saveTimeout = setTimeout(() => {
-      saveBtn.value = '保存'
-      saveTimeout = null
-    }, 1000)
+  }
+  showEl(removeBtn)
+  showEl(loadBtn)
+  if (saveTimeout) {
+    clearTimeout(saveTimeout)
+  }
+  saveTimeout = setTimeout(() => {
+    saveBtn.textContent = '保存'
+    saveTimeout = null
+  }, 1000)
+}
+saveBtn.addEventListener('click', (e) => {
+  if (nes.cpu.irqRequested && !isStop) {
+    const data = {
+      id: gameId(),
+      nes: JSON.stringify({
+        name: title.textContent,
+        data: nes.toJSON(),
+      }),
+    }
+    saveData({
+      data,
+      onError: (code) => {
+        if (code === 0) {
+          putData({
+            data,
+            onSuccess: saved,
+            onError: () => {
+              localStorage.setItem('nes', JSON.stringify(data))
+            }
+          })
+        }
+      },
+      onSuccess: saved
+    })
+  } else {
+    emitError('游戏尚未运行，请开始游戏后再试。')
   }
 })
 
 // 读取游戏
-const loadBtn = document.getElementById('load')
 let loadTimeout = null
-loadBtn.addEventListener('click', () => {
-  if (nes.cpu.irqRequested && !isStop && !isPause) {
-    const saveData = JSON.parse(localStorage.getItem('nes'))
-    if (saveData) {
-      if (saveData.name !== title.textContent) {
-        return emitError(`当前游戏[${title.textContent}]与保存的数据[${saveData.name}]不一致`)
-      }
-      try {
-        nes.ppu.reset()
-        nes.romData = saveData.data.romData
-        nes.cpu.fromJSON(saveData.data.cpu)
-        nes.mmap.fromJSON(saveData.data.mmap)
-        nes.ppu.fromJSON(saveData.data.ppu)
-        loadBtn.value = '已读'
-        if (loadTimeout) {
-          clearTimeout(loadTimeout)
-        }
-        loadTimeout = setTimeout(() => {
-          loadBtn.value = '读取'
-          loadTimeout = null
-        }, 1000)
-      }
-      catch (_) {
-        return emitError('无法读取，请开始游戏后重试')
-      }
+function load(saveData) {
+  try {
+    nes.ppu.reset()
+    nes.romData = saveData.data.romData
+    nes.cpu.fromJSON(saveData.data.cpu)
+    nes.mmap.fromJSON(saveData.data.mmap)
+    nes.ppu.fromJSON(saveData.data.ppu)
+    loadBtn.textContent = '已读'
+    if (loadTimeout) {
+      clearTimeout(loadTimeout)
     }
+    loadTimeout = setTimeout(() => {
+      loadBtn.textContent = '读取'
+      loadTimeout = null
+    }, 1000)
   }
+  catch (_) {
+    return emitError('读取失败，数据丢失或无效。')
+  }
+}
+loadBtn.addEventListener('click', () => {
+  if (nes.cpu.irqRequested && !isStop) {
+    if (isPause) {
+      togglePause()
+    }
+    loadData({
+      id: gameId(),
+      onSuccess(res) {
+        if (res.result?.nes) {
+          const saveData = JSON.parse(res.result.nes)
+          if (saveData) {
+            load(saveData)
+          } else {
+            return emitError('读取失败，数据丢失或无效。')
+          }
+        }
+        else {
+          return emitError('读取失败，数据丢失或无效。')
+        }
+      },
+      onError() {
+        const loaclItem = localStorage.getItem('nes')
+        if (loaclItem && 'nes' in loaclItem) {
+          const saveData = JSON.parse(loaclItem.nes)
+          load(saveData)
+        }
+      },
+    })
+  } else {
+    emitError('游戏尚未运行，请开始游戏后再试。')
+  }
+})
+
+// 删除存档
+removeBtn.addEventListener('click', () => {
+  removeData({
+    id: gameId(),
+    onSuccess: initSaveData
+  })
+  localStorage.removeItem(gameId())
 })
 
 // 保存配置
@@ -282,6 +389,7 @@ function loadConfig() {
     showFps.checked = config.showFps
     isMut = config.isMut
     clipSize.checked = config.clipSize
+    nes.ppu.clipToTvSize = config.clipSize
     slt.value = config.slt
     toggleMut()
     toggleSolution()
@@ -293,6 +401,7 @@ window.addEventListener('message', (e) => {
   showEl(mask)// 显示遮罩
   hiddenEl(startBtn)// 隐藏开始按钮
   showEl(loading)// 显示加载中
+  initSaveData()
   if (e.data.lable) {
     title.textContent = e.data.lable
     romBuffer = null
@@ -301,10 +410,12 @@ window.addEventListener('message', (e) => {
   loadROM(e.data.url)
 })
 
-const gm = new GamepadManager()
-gm.frame()
-loadConfig()
+window.onload = () => {
+  const gm = new GamepadManager()
+  gm.frame()
+  loadConfig()
 
-if (inBrowser()) {
-  loadROM('./roms/超级魂斗罗 (v2.0) (简).nes')
+  if (inBrowser()) {
+    loadROM('./roms/超级魂斗罗 (v2.0) (简).nes')
+  }
 }

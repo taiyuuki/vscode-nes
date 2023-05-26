@@ -12,6 +12,10 @@ body {
   font-weight: bold;
 }
 
+button {
+  border-radius: 6px;
+}
+
 #container {
   width: 512px;
   height: 480px;
@@ -29,7 +33,8 @@ body {
   background-color: #000;
 }
 
-#start, #loading {
+#start,
+#loading {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -44,27 +49,38 @@ body {
 }
 
 dot {
-  display: inline-block; 
-  height: 1em; line-height: 1;
+  display: inline-block;
+  height: 1em;
+  line-height: 1;
   text-align: left;
   vertical-align: -.25em;
   overflow: hidden;
 }
+
 dot::before {
   display: block;
   content: '...\A..\A.';
-  white-space: pre-wrap;   /* 也可以是white-space: pre */
+  white-space: pre-wrap;
+  /* 也可以是white-space: pre */
   animation: dot 3s infinite step-start both;
 }
+
 @keyframes dot {
-  33% { transform: translateY(-2em); }
-  66% { transform: translateY(-1em); }
+  33% {
+    transform: translateY(-2em);
+  }
+
+  66% {
+    transform: translateY(-1em);
+  }
 }
 
 #fps {
   position: absolute;
   top: 5px;
   left: 5px;
+  color: #fff;
+  text-shadow: 0 0 1px #000;
 }
 
 #cvs {
@@ -74,28 +90,92 @@ dot::before {
 }
 
 #options {
+  padding: 10px 0px;
+  width: 520px;
   font-size: 14px;
-  margin-top: 10px;
+  margin: 10px auto;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  box-shadow: 0 0 1px currentColor;
 }
 
-#options > * {
+#options>* {
   margin: 0 10px;
   opacity: 0.6;
 }
 
-#options > *:hover {
+#options>*:hover {
   opacity: 1;
 }
 
-#controls {
-  margin: 20px auto;
-  width: fit-content;
+#save-data {
+  width: 520px;
+  box-shadow: 0 0 1px currentColor;
+  margin: 10px auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  padding: 10px;
 }
 
-#controls td {
-  width: 8rem;
+#save-image {
+  width: 48px;
+  height: 45px;
+  box-sizing: border-box;
+  border-radius: 2px;
+  box-shadow: 0 0 1px currentColor;
+  overflow: hidden;
+}
+
+#save-data-message {
+  width: 280px;
+  margin: 10px;
   text-align: center;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+#save-image image {
+  width: 100%;
+  height: 100%;
+}
+
+#save-data-controls {
+  width: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 10px;
+}
+
+#remove,
+#save,
+#load {
+  margin-left: 10px;
+  border-radius: 5px;
+  padding: 5px;
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+#remove:hover,
+#save:hover,
+#load:hover {
+  opacity: 1;
+}
+
+#remove {
+  background-color: #f05a46;
+}
+
+#save {
+  background-color: #66ccff;
+}
+
+#load {
+  background-color: #43b244;
 }

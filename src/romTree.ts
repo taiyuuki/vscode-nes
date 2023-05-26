@@ -1,6 +1,5 @@
 import { join } from 'path'
 import * as vscode from 'vscode'
-import type { RootItem } from './romTreeItem'
 import { RomTreeItem } from './romTreeItem'
 import { localRoms } from './utils'
 
@@ -38,7 +37,7 @@ export class LocalRomTree implements vscode.TreeDataProvider<RomTreeItem> {
   }
 }
 
-export class RemoteRomTree implements vscode.TreeDataProvider<(RomTreeItem | RootItem)> {
+export class RemoteRomTree implements vscode.TreeDataProvider<RomTreeItem> {
   private readonly _onChangeTreeData = new vscode.EventEmitter<RomTreeItem | undefined>()
   public readonly onDidChangeTreeData = this._onChangeTreeData.event
   constructor() {
@@ -53,7 +52,7 @@ export class RemoteRomTree implements vscode.TreeDataProvider<(RomTreeItem | Roo
     this._onChangeTreeData.fire(void 0)
   }
 
-  getChildren(): Thenable<(RomTreeItem | RootItem)[]> {
+  getChildren(): Thenable<RomTreeItem[]> {
     const roms = vscode.workspace.getConfiguration('vscodeNes').get('romPath') as RomInfo[]
     const result: RomTreeItem[] = []
     roms.forEach(rom => {

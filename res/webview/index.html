@@ -8,6 +8,7 @@
   <title>红白机模拟器</title>
   <link rel="stylesheet" href="style.css">
   <script src="jsnes.js"></script>
+  <script src="indexedDB.js"></script>
   <script src="utils.js"></script>
   <script src="controller.js"></script>
   <script src="animation.js"></script>
@@ -38,70 +39,17 @@
     <input type="button" id="reset" value="重置" />
     <input type="button" id="pause" value="暂停" />
     <input type="button" id="mute" value="静音" />
-    <input type="button" id="save" value="保存" />
-    <input type="button" id="load" value="读取" />
   </div>
-  <div class="description">
-    <table id="controls" border="1" cellspacing="0">
-      <tr>
-        <th>按键</th>
-        <th>P1</th>
-        <th>P2</th>
-      </tr>
-      <tr>
-        <td>上</td>
-        <td>W</td>
-        <td>↑</td>
-      </tr>
-      <tr>
-        <td>下</td>
-        <td>S</td>
-        <td>↓</td>
-      </tr>
-      <tr>
-        <td>左</td>
-        <td>A</td>
-        <td>←</td>
-      </tr>
-      <tr>
-        <td>右</td>
-        <td>D</td>
-        <td>→</td>
-      </tr>
-      <tr>
-        <td>跳跃A</td>
-        <td>K</td>
-        <td>数字键2</td>
-      </tr>
-      <tr>
-        <td>攻击B</td>
-        <td>J</td>
-        <td>数字键1</td>
-      </tr>
-      <tr>
-        <td>跳跃连发C</td>
-        <td>I</td>
-        <td>数字键5</td>
-      </tr>
-      <tr>
-        <td>攻击连发D</td>
-        <td>U</td>
-        <td>数字键4</td>
-      </tr>
-      <tr>
-        <td>开始</td>
-        <td>1</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td>选择</td>
-        <td>2</td>
-        <td></td>
-      </tr>
-      <tr>
-        <td colspan="3">支持手柄，即插即玩。</td>
-      </tr>
-    </table>
+  <div id="save-data">
+    <div id="save-image">
+
+    </div>
+    <div id="save-data-message">暂无存档</div>
+    <div id="save-data-controls">
+      <div id="remove" class="hidden">删除</div>
+      <div id="load" class="hidden">读取</div>
+      <div id="save">保存</div>
+    </div>
   </div>
   <script src="main.js"></script>
 </body>

@@ -2,7 +2,7 @@
   "name": "vscode-nes",
   "displayName": "红白机",
   "publisher": "taiyuuki",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "红白机模拟器，支持手柄，支持保存、读取。",
   "main": "./dist/index.js",
   "repository": {
@@ -189,12 +189,12 @@
               "https://taiyuuki.github.io/vscode-nes/roms/洛克人.nes"
             ],
             [
-              "洛克人2-Dr",
-              "https://taiyuuki.github.io/vscode-nes/roms/洛克人2-Dr.nes"
+              "洛克人2",
+              "https://taiyuuki.github.io/vscode-nes/roms/洛克人2.nes"
             ],
             [
-              "洛克人3-Dr",
-              "https://taiyuuki.github.io/vscode-nes/roms/洛克人3-Dr.nes"
+              "洛克人3",
+              "https://taiyuuki.github.io/vscode-nes/roms/洛克人3.nes"
             ],
             [
               "烈火92",
