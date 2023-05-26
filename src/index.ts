@@ -4,7 +4,7 @@ import { RemoteRomTree, LocalRomTree } from './romTree'
 import { join } from 'path'
 import os from 'os'
 
-let panel = {} as vscode.WebviewPanel
+let panel!: vscode.WebviewPanel
 
 function setPanel(context: vscode.ExtensionContext) {
   panel = vscode.window.createWebviewPanel('vscode-nes', '红白机模拟器', vscode.ViewColumn.One, {
@@ -46,7 +46,6 @@ export function activate(context: vscode.ExtensionContext) {
     if (!isUrl(url)) {
       url = panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
     }
-    console.log(url)
     panel.webview.postMessage({ lable, url })
   })
   const addRomDispose = vscode.commands.registerCommand('vscodeNes.add', async () => {
