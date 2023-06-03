@@ -229,6 +229,36 @@ function loadROM(url) {
   req.send()
 }
 
+function getNesData() {
+  const ppuData = nes.ppu.toJSON()
+  const cpuData = nes.cpu.toJSON()
+  delete ppuData.attrib
+  delete ppuData.bgbuffer
+  delete ppuData.buffer
+  delete ppuData.pixrendered
+  delete ppuData.vramMirrorTable
+  const vramMenZip = compressArray(ppuData.vramMem)
+  const nameTableZip = compressNameTable(ppuData.nameTable)
+  const ptTileZip = compressPtTile(ppuData.ptTile)
+  const cpuMemZip = compressArray(cpuData.mem)
+  delete ppuData.vramMem
+  delete ppuData.nameTable
+  delete cpuData.mem
+  delete ppuData.ptTile
+  return JSON.stringify({
+    title: title.textContent,
+    data: {
+      cpu: cpuData,
+      mmap: nes.mmap.toJSON(),
+      ppu: ppuData,
+      vramMenZip,
+      nameTableZip,
+      cpuMemZip,
+      ptTileZip,
+    },
+  })
+}
+
 const saveBtn = document.getElementById('save')
 const loadBtn = document.getElementById('load')
 const removeBtn = document.getElementById('remove')
@@ -282,10 +312,7 @@ saveBtn.addEventListener('click', (e) => {
   if (nes.cpu.irqRequested && !isStop) {
     const data = {
       id: gameId(),
-      nes: JSON.stringify({
-        name: title.textContent,
-        data: nes.toJSON(),
-      }),
+      nes: getNesData(),
     }
     saveData({
       data,
@@ -312,10 +339,22 @@ let loadTimeout = null
 function load(saveData) {
   try {
     nes.ppu.reset()
-    nes.romData = saveData.data.romData
-    nes.cpu.fromJSON(saveData.data.cpu)
+    const ppuData = saveData.data.ppu
+    const cpuData = saveData.data.cpu
+    ppuData.attrib = get_fill_arr(0x20, 0)
+    ppuData.bgbuffer = get_fill_arr(0xF000, 0)
+    ppuData.buffer = get_fill_arr(0xF000, 0)
+    ppuData.pixrendered = get_fill_arr(0xF000, 0)
+    ppuData.vramMem = decompressArray(saveData.data.vramMenZip)
+    ppuData.nameTable = decompressNameTable(saveData.data.nameTableZip)
+    ppuData.vramMirrorTable = getVramMirrorTable()
+    ppuData.ptTile = decompressPtTile(saveData.data.ptTileZip)
+    cpuData.mem = decompressArray(saveData.data.cpuMemZip)
+    nes.ppu.reset()
+    nes.romData = romBuffer
+    nes.cpu.fromJSON(cpuData)
     nes.mmap.fromJSON(saveData.data.mmap)
-    nes.ppu.fromJSON(saveData.data.ppu)
+    nes.ppu.fromJSON(ppuData)
     loadBtn.textContent = '已读'
     if (loadTimeout) {
       clearTimeout(loadTimeout)
@@ -325,7 +364,8 @@ function load(saveData) {
       loadTimeout = null
     }, 1000)
   }
-  catch (_) {
+  catch (e) {
+    console.log(e)
     return emitError('读取失败，数据丢失或无效。')
   }
 }

@@ -28,7 +28,6 @@ function saveData({ data, onSuccess, onError }) {
     const res = db.transaction([storeName], 'readwrite').objectStore(storeName).add(data)
     res.onsuccess = onSuccess
     res.onerror = (e) => {
-        console.log(e)
         const error = e.target.error
         onError(error?.code)
     }
