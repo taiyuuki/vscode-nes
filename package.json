@@ -2,7 +2,7 @@
   "name": "vscode-nes",
   "displayName": "红白机",
   "publisher": "taiyuuki",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "红白机模拟器，支持手柄，支持保存、读取。",
   "main": "./dist/index.js",
   "repository": {
@@ -20,12 +20,17 @@
     "Emulator"
   ],
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.70.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onCommand:vscodeNes.add",
+    "onCommand:vscodeNes.remove",
+    "onView:remoteROM",
+    "onView:localROM"
+  ],
   "contributes": {
     "commands": [
       {
@@ -251,7 +256,7 @@
   "devDependencies": {
     "@taiyuuki/eslint-config-ts": "^0.0.5",
     "@types/node": "^18.11.18",
-    "@types/vscode": "^1.74.0",
+    "@types/vscode": "^1.70.0",
     "@vscode/test-electron": "^2.2.2",
     "eslint": "^8.10.0",
     "tsup": "^6.4.0"
