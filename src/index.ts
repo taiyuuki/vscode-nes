@@ -26,6 +26,15 @@ export function activate(context: vscode.ExtensionContext) {
   const remoteROMTreeData = vscode.window.registerTreeDataProvider('remoteROM', remoteROMTree)
   const localROMTreeData = vscode.window.registerTreeDataProvider('localROM', localROMTree)
 
+  let controller = vscode.workspace.getConfiguration('vscodeNes').get('controller')
+
+  vscode.workspace.onDidChangeConfiguration((e) => {
+    if (e.affectsConfiguration('vscodeNes.controller')) {
+      controller = vscode.workspace.getConfiguration('vscodeNes').get('controller')
+      panel && panel.webview.postMessage({ controller })
+    }
+  })
+
   let isDisposed = true
   const sendMessage = vscode.commands.registerCommand('vscodeNes.sendMessage', (message: string) => {
     vscode.window.showInformationMessage(message)
@@ -34,6 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
     if (isDisposed) {
       isDisposed = false
       setPanel(context)
+      panel.webview.postMessage({ controller })
       panel.onDidDispose(() => {
         isDisposed = true
       })

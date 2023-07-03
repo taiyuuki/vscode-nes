@@ -1,93 +1,150 @@
 const THRESHOLD = 0.3
 
-// 键盘按键
-const keys = {
-  'KeyW': [1, jsnes.Controller.BUTTON_UP],
-  'KeyS': [1, jsnes.Controller.BUTTON_DOWN],
-  'KeyA': [1, jsnes.Controller.BUTTON_LEFT],
-  'KeyD': [1, jsnes.Controller.BUTTON_RIGHT],
-  'Digit1': [1, jsnes.Controller.BUTTON_START],
-  'Digit2': [1, jsnes.Controller.BUTTON_SELECT],
-  'KeyJ': [1, jsnes.Controller.BUTTON_B],
-  'KeyK': [1, jsnes.Controller.BUTTON_A],
-  'ArrowUp': [2, jsnes.Controller.BUTTON_UP],
-  'ArrowDown': [2, jsnes.Controller.BUTTON_DOWN],
-  'ArrowLeft': [2, jsnes.Controller.BUTTON_LEFT],
-  'ArrowRight': [2, jsnes.Controller.BUTTON_RIGHT],
-  'Numpad1': [2, jsnes.Controller.BUTTON_B],
-  'Numpad2': [2, jsnes.Controller.BUTTON_A],
+const keyMap = {
+  'p1': {
+    'UP': [1, jsnes.Controller.BUTTON_UP],
+    'DOWN': [1, jsnes.Controller.BUTTON_DOWN],
+    'LEFT': [1, jsnes.Controller.BUTTON_LEFT],
+    'RIGHT': [1, jsnes.Controller.BUTTON_RIGHT],
+    'START': [1, jsnes.Controller.BUTTON_START],
+    'SELECT': [1, jsnes.Controller.BUTTON_SELECT],
+    'B': [1, jsnes.Controller.BUTTON_B],
+    'A': [1, jsnes.Controller.BUTTON_A],
+    'D': [1, jsnes.Controller.BUTTON_D],
+    'C': [1, jsnes.Controller.BUTTON_C],
+  },
+  'p2': {
+    'UP': [2, jsnes.Controller.BUTTON_UP],
+    'DOWN': [2, jsnes.Controller.BUTTON_DOWN],
+    'LEFT': [2, jsnes.Controller.BUTTON_LEFT],
+    'RIGHT': [2, jsnes.Controller.BUTTON_RIGHT],
+    'B': [2, jsnes.Controller.BUTTON_B],
+    'A': [2, jsnes.Controller.BUTTON_A],
+    'D': [2, jsnes.Controller.BUTTON_D],
+    'C': [2, jsnes.Controller.BUTTON_C],
+  }
 }
 
-// 连发按键
-const turbo = {
-  'KeyU': {
-    key: keys['KeyJ'],
-    timeout: 0,
-    beDown: false,
-    once: true,
+const defaultKeys = {
+  'p1': {
+    UP: 'KeyW',
+    DOWN: 'KeyS',
+    LEFT: 'KeyA',
+    RIGHT: 'KeyD',
+    START: 'Digit1',
+    SELECT: 'Digit2',
+    B: 'KeyJ',
+    A: 'KeyK',
+    D: 'KeyU',
+    C: 'KeyI'
   },
-  'KeyI': {
-    key: keys['KeyK'],
-    timeout: 0,
-    beDown: false,
-    once: true,
-  },
-  'Numpad4': {
-    key: keys['Numpad1'],
-    timeout: 0,
-    beDown: false,
-    once: true,
-  },
-  'Numpad5': {
-    key: keys['Numpad2'],
-    timeout: 0,
-    beDown: false,
-    once: true,
-  },
+  'p2': {
+    UP: 'ArrowUp',
+    DOWN: 'ArrowDown',
+    LEFT: 'ArrowLeft',
+    RIGHT: 'ArrowRight',
+    B: 'Numpad1',
+    A: 'Numpad2',
+    D: 'Numpad4',
+    C: 'Numpad5'
+  }
 }
+
+function getKeys() {
+  const keys = {}
+  Object.keys(defaultKeys.p1).forEach(key => {
+    keys[defaultKeys.p1[key]] = keyMap.p1[key]
+  })
+  Object.keys(defaultKeys.p2).forEach(key => {
+    keys[defaultKeys.p2[key]] = keyMap.p2[key]
+  })
+  return keys
+}
+
+function getTurboKeys() {
+  const turbo = {}
+  turbo[defaultKeys.p1.C] = {
+    key: keyMap.p1.A,
+    timeout: 0,
+    beDown: false,
+    once: true
+  }
+  turbo[defaultKeys.p1.D] = {
+    key: keyMap.p1.B,
+    timeout: 0,
+    beDown: false,
+    once: true
+  }
+  turbo[defaultKeys.p2.C] = {
+    key: keyMap.p2.A,
+    timeout: 0,
+    beDown: false,
+    once: true
+  }
+  turbo[defaultKeys.p2.D] = {
+    key: keyMap.p2.B,
+    timeout: 0,
+    beDown: false,
+    once: true
+  }
+  return turbo
+}
+
+
 
 function getBtnList() {
   return {
     p1: [
-      'KeyK',
-      'KeyI',
-      'KeyJ',
-      'KeyU',
+      defaultKeys.p1.A,
+      defaultKeys.p1.C,
+      defaultKeys.p1.B,
+      defaultKeys.p1.D,
       '',
       '',
       '',
       '',
-      'Digit2',
-      'Digit1',
+      defaultKeys.p1.SELECT,
+      defaultKeys.p1.START,
       '',
       '',
-      'KeyW',
-      'KeyS',
-      'KeyA',
-      'KeyD',
+      defaultKeys.p1.UP,
+      defaultKeys.p1.DOWN,
+      defaultKeys.p1.LEFT,
+      defaultKeys.p1.RIGHT,
     ],
     p2: [
-      'Numpad2',
-      'Numpad5',
-      'Numpad1',
-      'Numpad4',
+      defaultKeys.p2.A,
+      defaultKeys.p2.C,
+      defaultKeys.p2.B,
+      defaultKeys.p2.D,
       '',
       '',
       '',
       '',
-      'Digit2',
-      'Digit1',
+      defaultKeys.p1.SELECT,
+      defaultKeys.p1.START,
       '',
       '',
-      'ArrowUp',
-      'ArrowDown',
-      'ArrowLeft',
-      'ArrowRight',
+      defaultKeys.p2.UP,
+      defaultKeys.p2.DOWN,
+      defaultKeys.p2.LEFT,
+      defaultKeys.p2.RIGHT,
     ],
   }
 }
 
-const btnList = getBtnList()
+let keys = getKeys()
+let turbo = getTurboKeys()
+let btnList = getBtnList()
+
+function setKeys(config) {
+  Object.assign(defaultKeys, config)
+  keys = getKeys()
+  turbo = getTurboKeys()
+  btnList = getBtnList()
+}
+
+
 
 function keydown(e) {
   if (e.code in turbo) {

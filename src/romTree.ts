@@ -8,13 +8,6 @@ type RomInfo = [string, string]
 export class LocalRomTree implements vscode.TreeDataProvider<RomTreeItem> {
   private readonly _onChangeTreeData = new vscode.EventEmitter<RomTreeItem | undefined>()
   public readonly onDidChangeTreeData = this._onChangeTreeData.event
-  constructor() {
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('vscodeNes')) {
-        this._onChangeTreeData.fire(void 0)
-      }
-    })
-  }
 
   emitDataChange() {
     this._onChangeTreeData.fire(void 0)
@@ -42,7 +35,7 @@ export class RemoteRomTree implements vscode.TreeDataProvider<RomTreeItem> {
   public readonly onDidChangeTreeData = this._onChangeTreeData.event
   constructor() {
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('vscodeNes')) {
+      if (e.affectsConfiguration('vscodeNes.romPath')) {
         this._onChangeTreeData.fire(void 0)
       }
     })

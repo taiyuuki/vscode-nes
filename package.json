@@ -2,7 +2,7 @@
   "name": "vscode-nes",
   "displayName": "红白机",
   "publisher": "taiyuuki",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "description": "红白机模拟器，支持手柄，支持保存、读取。",
   "main": "./dist/index.js",
   "repository": {
@@ -235,6 +235,34 @@
             ]
           ],
           "description": "游戏ROM"
+        },
+        "vscodeNes.controller": {
+          "type": "object",
+          "description": "游戏控制器",
+          "default": {
+            "p1": {
+              "UP": "KeyW",
+              "DOWN": "KeyS",
+              "LEFT": "KeyA",
+              "RIGHT": "KeyD",
+              "START": "Digit1",
+              "SELECT": "Digit2",
+              "B": "KeyJ",
+              "A": "KeyK",
+              "D": "KeyU",
+              "C": "KeyI"
+            },
+            "p2": {
+              "UP": "ArrowUp",
+              "DOWN": "ArrowDown",
+              "LEFT": "ArrowLeft",
+              "RIGHT": "ArrowRight",
+              "B": "Numpad1",
+              "A": "Numpad2",
+              "D": "Numpad4",
+              "C": "Numpad5"
+            }
+          }
         }
       }
     }

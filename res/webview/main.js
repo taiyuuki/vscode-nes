@@ -446,6 +446,9 @@ window.addEventListener('message', (e) => {
     title.textContent = e.data.lable
     romBuffer = null
   }
+  if (e.data.controller) {
+    setKeys(e.data.controller)
+  }
   req.abort()
   loadROM(e.data.url)
 })

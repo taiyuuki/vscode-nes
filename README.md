@@ -1,3 +1,5 @@
+<center><img alt="红白机" width="128px" src="https://taiyuuki.gallerycdn.vsassets.io/extensions/taiyuuki/vscode-nes/0.0.6/1685968691107/Microsoft.VisualStudio.Services.Icons.Default"></center>
+
 # 红白机模拟器
 
 <a href="https://marketplace.visualstudio.com/items?itemName=taiyuuki.vscode-nes">
@@ -16,6 +18,9 @@
 - [x] 支持暂停、静音
 - [x] 支持加载本地ROM
 - [x] 支持双人
+- [x] 支持自定义按键
+
+## 默认按键
 
 | 按键      | P1   | P2      |
 | --------- | ---- | ------- |
@@ -30,9 +35,9 @@
 | 开始      | 1    |         |
 | 选择      | 2    |         |
 
-## 更新v0.0.6
+## 更新v0.1.0
 
-- 最低兼容至VS Code v1.70.0
+- 支持自定义按键
 
 ## 使用
 
@@ -43,6 +48,8 @@
 如果黑屏、不显示文字，点重置按钮试试，或者重新点击侧边栏中的游戏。
 
 ## 配置项
+
+### 远程地址
 
 我默认设置了30多个游戏，我直接用 Github Page作为远程地址，理论上不太需要担心会失效。
 
@@ -63,6 +70,37 @@
       "https://taiyuuki.github.io/vscode-nes/roms/恶魔城.nes"
     ]
   ]
+```
+
+### 自定义按键
+
+在settings.json中设置"vscodeNes.controller"字段可以自定义键盘按键（不会影响手柄），键值为[KeyboardEvent.code](https://developer.mozilla.org/zh-CN/docs/Web/API/KeyboardEvent/code)，默认值如下：
+
+```json
+{
+  "p1": {
+    "UP": "KeyW",
+    "DOWN": "KeyS",
+    "LEFT": "KeyA",
+    "RIGHT": "KeyD",
+    "START": "Digit1",
+    "SELECT": "Digit2",
+    "B": "KeyJ",
+    "A": "KeyK",
+    "D": "KeyU",
+    "C": "KeyI"
+  },
+  "p2": {
+    "UP": "ArrowUp",
+    "DOWN": "ArrowDown",
+    "LEFT": "ArrowLeft",
+    "RIGHT": "ArrowRight",
+    "B": "Numpad1",
+    "A": "Numpad2",
+    "D": "Numpad4",
+    "C": "Numpad5"
+  }
+}
 ```
 
 ## Issue
