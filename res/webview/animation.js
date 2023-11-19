@@ -13,6 +13,10 @@ function onFrame(framebuffer_24) {
       framebuffer_u32[i] = 0xff000000 | framebuffer_24[i] // Full alpha
     }
   }
+
+  if (cheat.enable) {
+    cheat.onFrame()
+  }
 }
 
 function animationFram(cvs) {

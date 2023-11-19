@@ -2,8 +2,8 @@
   "name": "vscode-nes",
   "displayName": "红白机",
   "publisher": "taiyuuki",
-  "version": "0.1.0",
-  "description": "红白机模拟器，支持手柄，支持保存、读取。",
+  "version": "0.2.1",
+  "description": "红白机模拟器，支持手柄、存档、金手指。",
   "main": "./dist/index.js",
   "repository": {
     "type": "git",
@@ -272,7 +272,7 @@
     "dev": "tsup --watch",
     "build": "tsup",
     "bump:patch": "bump patch",
-    "package": "npx vsce package --no-dependencies",
+    "package": "pnpx vsce package --no-dependencies",
     "publish": "vsce publish",
     "test": "vitest"
   },
@@ -283,10 +283,11 @@
   ],
   "devDependencies": {
     "@taiyuuki/eslint-config-ts": "^0.0.5",
-    "@types/node": "^18.11.18",
+    "@types/node": "^18.18.10",
     "@types/vscode": "^1.70.0",
-    "@vscode/test-electron": "^2.2.2",
-    "eslint": "^8.10.0",
-    "tsup": "^6.4.0"
+    "@vscode/test-electron": "^2.3.6",
+    "eslint": "^8.54.0",
+    "tsup": "^6.7.0",
+    "vsce": "^2.15.0"
   }
 }

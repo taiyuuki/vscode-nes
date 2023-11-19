@@ -26,7 +26,8 @@
     </div>
     <div id="fps"></div>
   </div>
-  <div id="options">
+  <fieldset id="options">
+    <legend>选项</legend>
     <select name="分辨率" id="rsl">
       <option value="256">256×240</option>
       <option value="512" selected>512×480</option>
@@ -39,8 +40,9 @@
     <input type="button" id="reset" value="重置" />
     <input type="button" id="pause" value="暂停" />
     <input type="button" id="mute" value="静音" />
-  </div>
-  <div id="save-data">
+  </fieldset>
+  <fieldset id="save-data">
+    <legend>存档</legend>
     <div id="save-image">
 
     </div>
@@ -50,8 +52,25 @@
       <div id="load" class="hidden">读取</div>
       <div id="save">保存</div>
     </div>
-  </div>
+  </fieldset>
+
+  <fieldset id="cheat-code">
+    <legend>金手指</legend>
+    <div id="add-cheat">
+      <div id="add-ipt">
+        名称<input type="text" id="ipt-name" placeholder="金手指名称">
+        代码<input type="text" id="ipt-code" placeholder="例如：079F-01-01">
+      </div>
+      <input type="button" id="ipt-add" value="添加" />
+    </div>
+    <!-- 作弊码列表 -->
+    <div id="cheat-list">
+
+    </div>
+  </fieldset>
+
   <script src="main.js"></script>
+  <script src="cheat.js"></script>
 </body>
 
 </html>

@@ -211,6 +211,7 @@ function loadROM(url) {
       hiddenEl(loading)// 隐藏加载中
       showEl(startBtn)// 显示开始按钮
       inBrowser() && start()
+      loadList()
       const data = localStorage.getItem(gameId())
       if (data) {
         const json = JSON.parse(data)
@@ -442,6 +443,7 @@ window.addEventListener('message', (e) => {
   hiddenEl(startBtn)// 隐藏开始按钮
   showEl(loading)// 显示加载中
   initSaveData()
+  clearList()
   if (e.data.lable) {
     title.textContent = e.data.lable
     romBuffer = null

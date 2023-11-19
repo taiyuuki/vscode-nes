@@ -93,6 +93,7 @@ dot::before {
   padding: 10px 0px;
   width: 520px;
   font-size: 14px;
+  border-style: none;
   margin: 10px auto;
   display: flex;
   align-items: center;
@@ -101,24 +102,32 @@ dot::before {
   box-shadow: 0 0 1px currentColor;
 }
 
-#options>* {
+input[type="button"],
+input[type="text"],
+label,
+select {
   margin: 0 10px;
   opacity: 0.6;
 }
 
-#options>*:hover {
+input[type="button"]:hover,
+input[type="text"]:focus,
+label:hover,
+select:hover {
   opacity: 1;
 }
 
 #save-data {
   width: 520px;
   box-shadow: 0 0 1px currentColor;
+  border-style: none;
   margin: 10px auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   box-sizing: border-box;
   padding: 10px;
+  font-size: 14px;
 }
 
 #save-image {
@@ -131,7 +140,6 @@ dot::before {
 }
 
 #save-data-message {
-  width: 280px;
   margin: 10px;
   text-align: center;
   font-size: 12px;
@@ -178,4 +186,67 @@ dot::before {
 
 #load {
   background-color: #43b244;
+}
+
+#cheat-code {
+  width: 520px;
+  box-sizing: border-box;
+  box-shadow: 0 0 1px currentColor;
+  border-style: none;
+  margin: 10px auto;
+  font-size: 14px;
+}
+
+input#ipt-name,
+input#ipt-code {
+  margin: 0 10px;
+  width: 120px;
+}
+
+#add-cheat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+}
+
+#cheat-list {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 10px 0;
+  padding: 5px;
+  box-shadow: 0 0 1px currentColor;
+}
+
+#cheat-list:empty {
+  display: none;
+}
+
+.cheat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px;
+  box-sizing: border-box;
+}
+
+.list-cheat-delete {
+  width: 20px;
+  margin: 0 5px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.list-cheat-delete:hover {
+  opacity: 1;
+}
+
+.list-cheat-code {
+  width: 180px;
+}
+
+.list-cheat-name {
+  width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

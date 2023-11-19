@@ -144,3 +144,7 @@ function decompressNameTable(compressed) {
   }
   return nameTable
 }
+
+function toHexNumber(num) {
+  return Number('0x' + num)
+}
