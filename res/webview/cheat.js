@@ -103,6 +103,7 @@ class Cheat {
 const cheat = new Cheat()
 const list = document.querySelector("#cheat-list")
 let vList = {}
+let cheatState = {}
 
 function saveList() {
     if (Object.keys(vList).length === 0) {
@@ -125,10 +126,11 @@ function loadList() {
 function clearList() {
     list.innerHTML = ""
     vList = {}
+    cheatState = {}
+    cheat.init()
 }
 
 function renderList() {
-    list.innerHTML = ""
     const fragment = document.createDocumentFragment()
     Object.entries(vList).forEach(([code, name]) => {
         const newCheat = document.createElement("div")
@@ -167,13 +169,15 @@ function renderList() {
         } else {
             const checkBox = document.createElement("input")
             checkBox.type = "checkbox"
-            checkBox.checked = false
+            checkBox.checked = cheatState[code] || false
             checkBox.style.flex = "1"
             checkBox.addEventListener("change", () => {
                 if (checkBox.checked) {
                     cheat.parse(code)
+                    cheatState[code] = true
                 } else {
                     cheat.disable(code)
+                    cheatState[code] = false
                 }
             })
             newCheat.appendChild(checkBox)
@@ -182,10 +186,11 @@ function renderList() {
 
         fragment.appendChild(newCheat)
     })
-    document.querySelector("#cheat-list").appendChild(fragment)
+    list.innerHTML = ""
+    list.appendChild(fragment)
 }
 
-function add() {
+function addCheatCode() {
     const $code = document.querySelector("#ipt-code")
 
     let code = $code.value.trim().toUpperCase()
@@ -206,6 +211,7 @@ function add() {
     }
 
     vList[code] = name
+    cheatState[code] = false
 
     saveList()
 
@@ -215,4 +221,4 @@ function add() {
     $code.value = ""
 }
 
-document.querySelector("#ipt-add").addEventListener("click", add)
+document.querySelector("#ipt-add").addEventListener("click", addCheatCode)

@@ -90,7 +90,7 @@ dot::before {
 }
 
 #options {
-  padding: 10px 0px;
+  padding: 10px 5px;
   width: 520px;
   font-size: 14px;
   border-style: none;
@@ -126,7 +126,7 @@ select:hover {
   align-items: center;
   justify-content: space-between;
   box-sizing: border-box;
-  padding: 10px;
+  padding: 10px 5px;
   font-size: 14px;
 }
 
@@ -194,6 +194,7 @@ select:hover {
   box-shadow: 0 0 1px currentColor;
   border-style: none;
   margin: 10px auto;
+  padding: 10px 5px;
   font-size: 14px;
 }
 
