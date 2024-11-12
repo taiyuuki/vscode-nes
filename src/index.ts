@@ -78,12 +78,22 @@ export function activate(context: vscode.ExtensionContext) {
         removeRom(item.label)
         localROMTree.emitDataChange.call(localROMTree)
     })
+    const likeRomDispose = vscode.commands.registerCommand('vscodeNes.like', item => {
+        
+        remoteROMTree.addLike(item.label, item.tooltip)
+    })
+    const dislikeRomDispose = vscode.commands.registerCommand('vscodeNes.dislike', item => {
+        
+        remoteROMTree.removeLike(item.label)
+    })
     context.subscriptions.push(remoteROMTreeData)
     context.subscriptions.push(localROMTreeData)
     context.subscriptions.push(playCommand)
     context.subscriptions.push(sendMessage)
     context.subscriptions.push(addRomDispose)
     context.subscriptions.push(removeRomDispose)
+    context.subscriptions.push(likeRomDispose)
+    context.subscriptions.push(dislikeRomDispose)
 }
 
 export function deactivate(context: vscode.ExtensionContext) {

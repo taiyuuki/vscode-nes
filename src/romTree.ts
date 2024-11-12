@@ -1,10 +1,8 @@
 import { join } from 'node:path'
 import * as vscode from 'vscode'
 import { RomGroupTreeItem, RomTreeItem } from './romTreeItem'
-import { localRoms, objectKeys } from './utils'
+import { likesRoms, localRoms, objectKeys, saveLikes } from './utils'
 import { baseURL, games, types } from './games'
-
-type RomInfo = [string, string]
 
 export class LocalRomTree implements vscode.TreeDataProvider<RomTreeItem> {
     private readonly _onChangeTreeData = new vscode.EventEmitter<RomTreeItem | undefined>()
@@ -25,7 +23,7 @@ export class LocalRomTree implements vscode.TreeDataProvider<RomTreeItem> {
         }
         const result: RomTreeItem[] = []
         list.forEach(key => {
-            result.push(new RomTreeItem(key, localRoms[key], new vscode.ThemeIcon('file')))
+            result.push(new RomTreeItem(key, localRoms[key], 'local', new vscode.ThemeIcon('file')))
         })
 
         return Promise.resolve(result)
@@ -35,8 +33,10 @@ export class LocalRomTree implements vscode.TreeDataProvider<RomTreeItem> {
 export class RemoteRomTree implements vscode.TreeDataProvider<RomTreeItem> {
     private readonly _onChangeTreeData = new vscode.EventEmitter<RomTreeItem | undefined>()
     public readonly onDidChangeTreeData = this._onChangeTreeData.event
+    public likes: Record<string, string>
 
     constructor() {
+        this.likes = likesRoms
         vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('vscodeNes.romPath')) {
                 this._onChangeTreeData.fire(void 0)
@@ -48,19 +48,30 @@ export class RemoteRomTree implements vscode.TreeDataProvider<RomTreeItem> {
         this._onChangeTreeData.fire(void 0)
     }
 
-    getChildren(element: RomGroupTreeItem | undefined): Thenable<RomTreeItem[]> {
+    addLike(title: string, url: string) {
+        this.likes[title] = url
+        this.emitDataChange()
+        saveLikes(this.likes)
+    }
 
-        // const roms = vscode.workspace.getConfiguration('vscodeNes').get('romPath') as RomInfo[]
-        // const result: RomTreeItem[] = []
-        // roms.forEach(rom => {
-        //     result.push(new RomTreeItem(rom[0], rom[1], join(__dirname, '../res/nes-rom.svg')))
-        // })
-        // result.push(new RomTreeItem('雪人兄弟', 'https://gitee.com/taiyuuki/nes-roms/raw/main/%E9%9B%AA%E4%BA%BA%E5%85%84%E5%BC%9F', join(__dirname, '../res/nes-rom.svg')))
+    removeLike(title: string) {
+        delete this.likes[title]
+        this.emitDataChange()
+        saveLikes(this.likes)
+    }
+
+    getChildren(element: RomGroupTreeItem | undefined) {
+
         if (element) {
             const result: RomTreeItem[] = []
-            if (element.key) {
+            if (element.key === 'likes') {
+                objectKeys(this.likes).forEach(key => {
+                    result.push(new RomTreeItem(key, this.likes[key], 'likes', new vscode.ThemeIcon('heart')))
+                })
+            }
+            else {
                 games.filter(game => game.type === element.key).forEach(game => {
-                    result.push(new RomTreeItem(game.title, baseURL + game.title, join(__dirname, '../res/nes-rom.svg')))
+                    result.push(new RomTreeItem(game.title, `${baseURL + game.title}.nes`, game.type, join(__dirname, '../res/nes-rom.svg')))
                 })
             }
 
@@ -68,6 +79,7 @@ export class RemoteRomTree implements vscode.TreeDataProvider<RomTreeItem> {
         }
         else {
             const result: RomGroupTreeItem[] = []
+            result.push(new RomGroupTreeItem('我的收藏', 'likes'))
             objectKeys(types).forEach(key => {
                 result.push(new RomGroupTreeItem(types[key], key))
             })

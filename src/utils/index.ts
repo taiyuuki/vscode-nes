@@ -21,6 +21,15 @@ export const localRoms: Record<string, string> = (function() {
     return JSON.parse(readFileSync(metaPath, 'utf-8'))
 })()
 
+export const likesRoms: Record<string, string> = (function() {
+    const metaPath = join(os.homedir(), 'vscode.nes', 'likes.json')
+    if (!_pathExists(metaPath)) {
+        return {}
+    }
+
+    return JSON.parse(readFileSync(metaPath, 'utf-8'))
+})()
+
 export function getHtml(extentionPath: string, panel: WebviewPanel) {
     const reg = /(<link.+?href="|<script.+?src="|<img.+?src=")(.+?)"/g
     let html = readFileSync(join(extentionPath, 'res/webview/index.html'), 'utf-8')
@@ -66,6 +75,10 @@ export function removeRom(name: string) {
             }
         })
     }
+}
+
+export function saveLikes(likes: Record<string, string>) {
+    writeFileSync(join(os.homedir(), 'vscode.nes', 'likes.json'), JSON.stringify(likes, null, 2))
 }
 
 export function objectKeys<T extends object>(obj: T): (keyof T)[] {
