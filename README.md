@@ -50,29 +50,6 @@
 
 ## 配置项
 
-### 远程地址
-
-我默认设置了30多个游戏，我直接用 Github Page作为远程地址，理论上不太需要担心会失效。
-
-如果想玩更多游戏，除了加载本地ROM，你还可以在插件的设置（`settings.json`）中增加或修改`vscodeNes.romPath`，格式如下：
-
-```json
-"vscodeNes.romPath": [
-    [
-      "忍者龙剑传3-黄泉方舟",
-      "https://taiyuuki.github.io/vscode-nes/roms/忍者龙剑传3-黄泉方舟.nes"
-    ],
-    [
-      "快打旋风",
-      "https://taiyuuki.github.io/vscode-nes/roms/快打旋风.nes"
-    ],
-    [
-      "恶魔城",
-      "https://taiyuuki.github.io/vscode-nes/roms/恶魔城.nes"
-    ]
-  ]
-```
-
 ### 自定义按键
 
 在settings.json中设置"vscodeNes.controller"字段可以自定义键盘按键（不会影响手柄），键值为[KeyboardEvent.code](https://developer.mozilla.org/zh-CN/docs/Web/API/KeyboardEvent/code)，默认值如下：
