@@ -868,10 +868,6 @@ const games = [
         type: 'FTG',
     },
     {        
-        title: '武士魂 (简)',
-        type: 'FTG',
-    },
-    {        
         title: '灵界护法 (繁)',
         type: 'ACT',
     },

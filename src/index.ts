@@ -1,7 +1,8 @@
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import os from 'node:os'
+import { copyFileSync, writeFileSync } from 'node:fs'
 import * as vscode from 'vscode'
-import { getHtml, isUrl, removeRom, saveLocalRoms } from './utils'
+import { ensureExists, getHtml, isUrl, localRoms, removeRom, saveLocalRoms } from './utils'
 import { LocalRomTree, RemoteRomTree } from './romTree'
 
 let panel!: vscode.WebviewPanel
@@ -53,12 +54,37 @@ export function activate(context: vscode.ExtensionContext) {
                 if (data.type === 'error') {
                     vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
                 }
+                else if (data.type === 'download') {
+                    const userPath = join(os.homedir(), 'vscode.nes')
+                    const savePath = join(userPath, 'roms')
+                    ensureExists(userPath)
+                    ensureExists(savePath)
+                    const filePath = join(savePath, data.fileName)
+                    localRoms[data.fileName] = filePath
+                    const rom = []
+                    let i = 0
+                    let byte = data.content.charCodeAt(i)
+                    while(!Number.isNaN(byte)) {
+                        rom.push(byte)
+                        i += 1
+                        byte = data.content.charCodeAt(i)
+                    }
+                    writeFileSync(filePath, Buffer.from(rom))
+                    saveLocalRoms(localRoms)
+                    localROMTree.emitDataChange.call(localROMTree)
+                }
             })
         }
+        let isLocal = false
         if (!isUrl(url)) {
             url = panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
+            isLocal = true
         }
-        panel.webview.postMessage({ lable, url })
+        else if (lable in localRoms) {
+            isLocal = true
+            url = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[lable])).toString()
+        }
+        panel.webview.postMessage({ lable, url, isLocal })
     })
     const addRomDispose = vscode.commands.registerCommand('vscodeNes.add', async() => {
         const files = await vscode.window.showOpenDialog({
@@ -70,7 +96,16 @@ export function activate(context: vscode.ExtensionContext) {
         })
 
         if (files) {
-            saveLocalRoms(files)
+            const userPath = join(os.homedir(), 'vscode.nes')
+            const savePath = join(userPath, 'roms')
+            ensureExists(userPath)
+            ensureExists(savePath)
+            files.forEach(file => {
+                const filePath = join(savePath, basename(file.fsPath))
+                localRoms[basename(file.fsPath)] = filePath
+                copyFileSync(file.fsPath, filePath)
+                saveLocalRoms(localRoms)
+            })
             localROMTree.emitDataChange.call(localROMTree)
         }
     })
@@ -86,6 +121,7 @@ export function activate(context: vscode.ExtensionContext) {
         
         remoteROMTree.removeLike(item.label)
     })
+
     context.subscriptions.push(remoteROMTreeData)
     context.subscriptions.push(localROMTreeData)
     context.subscriptions.push(playCommand)

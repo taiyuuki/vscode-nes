@@ -91,7 +91,7 @@ dot::before {
 
 #options {
   padding: 10px 5px;
-  width: 520px;
+  width: 600px;
   font-size: 14px;
   border-style: none;
   margin: 10px auto;
@@ -117,8 +117,14 @@ select:hover {
   opacity: 1;
 }
 
+input[disabled] {
+  opacity: 1 !important;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 #save-data {
-  width: 520px;
+  width: 600px;
   box-shadow: 0 0 1px currentColor;
   border-style: none;
   margin: 10px auto;
@@ -189,7 +195,7 @@ select:hover {
 }
 
 #cheat-code {
-  width: 520px;
+  width: 600px;
   box-sizing: border-box;
   box-shadow: 0 0 1px currentColor;
   border-style: none;

@@ -1,6 +1,6 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, unlink, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, unlink, writeFileSync } from 'node:fs'
 import os from 'node:os'
-import { basename, join } from 'node:path'
+import { join } from 'node:path'
 import type { WebviewPanel } from 'vscode'
 import { Uri } from 'vscode'
 
@@ -52,17 +52,10 @@ export function ensureExists(path: string) {
     }
 }
 
-export function saveLocalRoms(files: Uri[]) {
+export function saveLocalRoms(roms: Record<string, string>) {
     const userPath = join(os.homedir(), 'vscode.nes')
-    const savePath = join(userPath, 'roms')
-    ensureExists(userPath)
-    ensureExists(savePath)
-    files.forEach(file => {
-        const filePath = join(userPath, 'roms', basename(file.fsPath))
-        localRoms[basename(file.fsPath)] = filePath
-        copyFileSync(file.fsPath, filePath)
-    })
-    writeFileSync(join(userPath, LOCAL_ROMS_FILENAME), JSON.stringify(localRoms, null, 2))
+
+    writeFileSync(join(userPath, LOCAL_ROMS_FILENAME), JSON.stringify(roms, null, 2))
 }
 
 export function removeRom(name: string) {

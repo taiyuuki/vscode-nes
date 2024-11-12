@@ -1,5 +1,13 @@
+const saveBtn = document.getElementById('save')
+const loadBtn = document.getElementById('load')
+const removeBtn = document.getElementById('remove')
+const downloadBtn = document.getElementById('download')
+const saveImage = document.getElementById('save-image')
+const saveDataMsg = document.getElementById('save-data-message')
 const container = document.getElementById('container')
+
 const cvs = document.getElementById('cvs')
+
 const ctx = cvs.getContext('2d')
 ctx.width = '256'
 ctx.height = '240'
@@ -260,12 +268,6 @@ function getNesData() {
   })
 }
 
-const saveBtn = document.getElementById('save')
-const loadBtn = document.getElementById('load')
-const removeBtn = document.getElementById('remove')
-const saveImage = document.getElementById('save-image')
-const saveDataMsg = document.getElementById('save-data-message')
-
 // 没有存档时隐藏部分按钮
 function initSaveData() {
   hiddenEl(loadBtn)
@@ -438,6 +440,21 @@ function loadConfig() {
   }
 }
 
+// 下载ROM到本地
+function saveROM() {
+  if (romBuffer) {
+    vscode.postMessage({
+      type: 'download',
+      content: romBuffer,
+      fileName: title.textContent,
+    })
+    downloadBtn.setAttribute('disabled', true)
+    downloadBtn.value = '已下载'
+  }
+}
+
+downloadBtn.addEventListener('click', saveROM)
+
 window.addEventListener('message', (e) => {
   showEl(mask)// 显示遮罩
   hiddenEl(startBtn)// 隐藏开始按钮
@@ -453,14 +470,18 @@ window.addEventListener('message', (e) => {
   }
   req.abort()
   loadROM(e.data.url)
+  if (e.data.isLocal) {
+    downloadBtn.setAttribute('disabled', true)
+    downloadBtn.value = '已下载'
+  }
+  else {
+    downloadBtn.removeAttribute('disabled')
+    downloadBtn.value = '下载'
+  }
 })
 
 window.onload = () => {
   const gm = new GamepadManager()
   gm.frame()
   loadConfig()
-
-  if (inBrowser()) {
-    loadROM('./roms/超级魂斗罗 (v2.0) (简).nes')
-  }
 }

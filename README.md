@@ -5,7 +5,7 @@
 <a href="https://marketplace.visualstudio.com/items?itemName=taiyuuki.vscode-nes">
 <img alt="Marketplace Version" src="https://img.shields.io/visual-studio-marketplace/v/taiyuuki.vscode-nes?color=%0eb0c9&label=Marketplace&logo=visual%20studio%20code"></a>
 
-这是一款可以玩 FC(NES) 游戏的 VS Code 插件。
+这是一款可以玩 FC(NES) 游戏的 VS Code 插件，内置大约400个游戏。
 
 受 [小霸王](https://marketplace.visualstudio.com/items?itemName=gamedilong.anes) 的启发，但它已经很久没有维护，新版本VS Code无法使用，于是我写了这个能用、且功能更强大的版本。
 
