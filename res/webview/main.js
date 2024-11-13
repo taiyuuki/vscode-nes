@@ -467,28 +467,37 @@ function saveROM() {
 downloadBtn.addEventListener('click', saveROM)
 
 window.addEventListener('message', (e) => {
-  disableDownload('下载ROM')// 禁用下载
-  showEl(mask)// 显示遮罩
-  hiddenEl(startBtn)// 隐藏开始按钮
-  showEl(loading)// 显示加载中
-  initSaveData()
-  clearList()
-  if (e.data.lable) {
-    title.textContent = e.data.lable
-    romBuffer = null
+  switch (e.data.type) {
+    case 'play':
+      disableDownload('下载ROM')// 禁用下载
+      showEl(mask)// 显示遮罩
+      hiddenEl(startBtn)// 隐藏开始按钮
+      showEl(loading)// 显示加载中
+      initSaveData()
+      clearList()
+      if (e.data.lable) {
+        title.textContent = e.data.lable
+        romBuffer = null
+        req.abort()
+        loadROM(e.data.url).then(() => {
+          if (e.data.isLocal) {
+            disableDownload('本地ROM')// 禁用下载
+          }
+          else {
+            ableToDowload()// 允许下载
+          }
+        })
+      }
+      break
+    case 'setController':
+      setKeys(e.data.controller)
+      break
+    case 'delete':
+      if (title.textContent === e.data.lable) {
+        ableToDowload()
+      }
+      break
   }
-  if (e.data.controller) {
-    setKeys(e.data.controller)
-  }
-  req.abort()
-  loadROM(e.data.url).then(() => {
-    if (e.data.isLocal) {
-      disableDownload('本地ROM')// 禁用下载
-    }
-    else {
-      ableToDowload()// 允许下载
-    }
-  })
 })
 
 window.onload = () => {

@@ -4,7 +4,9 @@ import { join } from 'node:path'
 import type { WebviewPanel } from 'vscode'
 import { Uri } from 'vscode'
 
-const LOCAL_ROMS_FILENAME = 'local-roms.json'
+export const LOCAL_FOLDER = 'vscode.nes'
+export const LOCAL_ROMS_FILENAME = 'local-roms.json'
+export const LIKES_ROMS_FILENAME = 'likes.json'
 
 export function isUrl(str: string) {
     const reg = /^https?.+?/g
@@ -13,7 +15,7 @@ export function isUrl(str: string) {
 }
 
 export const localRoms: Record<string, string> = (function() {
-    const metaPath = join(os.homedir(), 'vscode.nes', LOCAL_ROMS_FILENAME)
+    const metaPath = join(os.homedir(), LOCAL_FOLDER, LOCAL_ROMS_FILENAME)
     if (!_pathExists(metaPath)) {
         return {}
     }
@@ -22,7 +24,7 @@ export const localRoms: Record<string, string> = (function() {
 })()
 
 export const likesRoms: Record<string, string> = (function() {
-    const metaPath = join(os.homedir(), 'vscode.nes', 'likes.json')
+    const metaPath = join(os.homedir(), LOCAL_FOLDER, LIKES_ROMS_FILENAME)
     if (!_pathExists(metaPath)) {
         return {}
     }

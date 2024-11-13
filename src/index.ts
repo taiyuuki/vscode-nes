@@ -2,7 +2,7 @@ import { basename, join } from 'node:path'
 import os from 'node:os'
 import { copyFileSync, writeFileSync } from 'node:fs'
 import * as vscode from 'vscode'
-import { ensureExists, getHtml, isUrl, localRoms, removeRom, saveLocalRoms } from './utils'
+import { LOCAL_FOLDER, ensureExists, getHtml, isUrl, localRoms, removeRom, saveLocalRoms } from './utils'
 import { LocalRomTree, RemoteRomTree } from './romTree'
 
 let panel!: vscode.WebviewPanel
@@ -12,7 +12,7 @@ function setPanel(context: vscode.ExtensionContext) {
         enableScripts: true,
         retainContextWhenHidden: true,
         localResourceRoots: [
-            vscode.Uri.file(join(os.homedir(), 'vscode.nes')),
+            vscode.Uri.file(join(os.homedir(), LOCAL_FOLDER)),
             vscode.Uri.file(join(context.extensionPath, 'res')),
         ],
     })
@@ -33,7 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (e.affectsConfiguration('vscodeNes.controller')) {
             controller = vscode.workspace.getConfiguration('vscodeNes').get('controller')
             if (panel) {
-                panel.webview.postMessage({ controller })
+                panel.webview.postMessage({ type: 'setController', controller })
             }
         }
     })
@@ -46,7 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (isDisposed) {
             isDisposed = false
             setPanel(context)
-            panel.webview.postMessage({ controller })
+            panel.webview.postMessage({ type: 'setController', controller })
             panel.onDidDispose(() => {
                 isDisposed = true
             })
@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
                     vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
                 }
                 else if (data.type === 'download') {
-                    const userPath = join(os.homedir(), 'vscode.nes')
+                    const userPath = join(os.homedir(), LOCAL_FOLDER)
                     const savePath = join(userPath, 'roms')
                     ensureExists(userPath)
                     ensureExists(savePath)
@@ -76,6 +76,9 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             })
         }
+        else{
+            panel.reveal()
+        }
         let isLocal = false
         if (!isUrl(url)) {
             url = panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
@@ -85,7 +88,7 @@ export function activate(context: vscode.ExtensionContext) {
             isLocal = true
             url = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[lable])).toString()
         }
-        panel.webview.postMessage({ lable, url, isLocal })
+        panel.webview.postMessage({ type: 'play', lable, url, isLocal })
     })
     const addRomDispose = vscode.commands.registerCommand('vscodeNes.add', async() => {
         const files = await vscode.window.showOpenDialog({
@@ -97,7 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
         })
 
         if (files) {
-            const userPath = join(os.homedir(), 'vscode.nes')
+            const userPath = join(os.homedir(), LOCAL_FOLDER)
             const savePath = join(userPath, 'roms')
             ensureExists(userPath)
             ensureExists(savePath)
@@ -114,6 +117,9 @@ export function activate(context: vscode.ExtensionContext) {
         removeRom(item.label)
         localROMTree.emitDataChange.call(localROMTree)
         remoteROMTree.emitDataChange.call(remoteROMTree)
+        if (panel) {
+            panel.webview.postMessage({ type: 'delete', lable: item.label })
+        }
     })
     const likeRomDispose = vscode.commands.registerCommand('vscodeNes.like', item => {
         

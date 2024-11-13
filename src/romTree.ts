@@ -87,8 +87,6 @@ export class RemoteRomTree implements vscode.TreeDataProvider<RomTreeItem> {
 
             return Promise.resolve(result)
         }
-
-        // return Promise.resolve(result)
     }
 
     getTreeItem(element: RomTreeItem): Thenable<vscode.TreeItem> | vscode.TreeItem {
