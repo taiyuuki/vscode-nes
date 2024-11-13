@@ -39,6 +39,14 @@ function hiddenEl(el) {
 function showEl(el) {
   el.classList.remove('hidden')
 }
+function ableToDowload() {
+  downloadBtn.removeAttribute('disabled')
+  downloadBtn.value = '下载ROM'
+}
+function disableDownload(value) {
+  downloadBtn.setAttribute('disabled', true)
+  downloadBtn.value = value
+}
 
 // 加载中
 const loading = document.getElementById('loading')
@@ -195,7 +203,7 @@ function start() {
 }
 
 // 加载ROM
-function loadROM(url) {
+async function loadROM(url) {
   if (!isStop) {
     stop()
   }
@@ -203,39 +211,43 @@ function loadROM(url) {
     start()
     return
   }
-  req = new XMLHttpRequest()
-  req.open('GET', url)
-  req.overrideMimeType('text/plain; charset=x-user-defined')
-  req.timeout = 300000
-  req.ontimeout = () => {
-    emitError(`${title.textContent}请求超时，可能是地址失效或网络不稳定。`)
-  }
-  req.onerror = () => {
-    emitError(`${title.textContent}加载失败，可能是地址失效或网络不稳定。`)
-  }
-  req.onload = function () {
-    if (this.status === 200) {
-      romBuffer = this.responseText
-      hiddenEl(loading)// 隐藏加载中
-      showEl(startBtn)// 显示开始按钮
-      inBrowser() && start()
-      loadList()
-      const data = localStorage.getItem(gameId())
-      if (data) {
-        const json = JSON.parse(data)
-        showEl(loadBtn)
-        showEl(removeBtn)
-        const img = new Image()
-        saveDataMsg.textContent = json.time
-        img.src = json.dataURL
-        saveImage.appendChild(img)
+  return new Promise((resolve, reject) => {
+    req = new XMLHttpRequest()
+    req.open('GET', url)
+    req.overrideMimeType('text/plain; charset=x-user-defined')
+    req.timeout = 300000
+    req.ontimeout = () => {
+      emitError(`${title.textContent}请求超时，可能是地址失效或网络不稳定。`)
+    }
+    req.onerror = () => {
+      emitError(`${title.textContent}加载失败，可能是地址失效或网络不稳定。`)
+    }
+    req.onload = function () {
+      if (this.status === 200) {
+        romBuffer = this.responseText
+        hiddenEl(loading)// 隐藏加载中
+        showEl(startBtn)// 显示开始按钮
+        inBrowser() && start()
+        loadList()
+        const data = localStorage.getItem(gameId())
+        if (data) {
+          const json = JSON.parse(data)
+          showEl(loadBtn)
+          showEl(removeBtn)
+          const img = new Image()
+          saveDataMsg.textContent = json.time
+          img.src = json.dataURL
+          saveImage.appendChild(img)
+        }
+        resolve(true)
+      }
+      else {
+        emitError(`${title.textContent}加载失败，地址可能已经失效。`)
+        reject(false)
       }
     }
-    else {
-      emitError(`${title.textContent}加载失败，地址可能已经失效。`)
-    }
-  }
-  req.send()
+    req.send()
+  })
 }
 
 function getNesData() {
@@ -448,14 +460,14 @@ function saveROM() {
       content: romBuffer,
       fileName: title.textContent,
     })
-    downloadBtn.setAttribute('disabled', true)
-    downloadBtn.value = '已下载'
+    disableDownload('本地ROM')// 禁用下载
   }
 }
 
 downloadBtn.addEventListener('click', saveROM)
 
 window.addEventListener('message', (e) => {
+  disableDownload('下载ROM')// 禁用下载
   showEl(mask)// 显示遮罩
   hiddenEl(startBtn)// 隐藏开始按钮
   showEl(loading)// 显示加载中
@@ -469,15 +481,14 @@ window.addEventListener('message', (e) => {
     setKeys(e.data.controller)
   }
   req.abort()
-  loadROM(e.data.url)
-  if (e.data.isLocal) {
-    downloadBtn.setAttribute('disabled', true)
-    downloadBtn.value = '已下载'
-  }
-  else {
-    downloadBtn.removeAttribute('disabled')
-    downloadBtn.value = '下载'
-  }
+  loadROM(e.data.url).then(() => {
+    if (e.data.isLocal) {
+      disableDownload('本地ROM')// 禁用下载
+    }
+    else {
+      ableToDowload()// 允许下载
+    }
+  })
 })
 
 window.onload = () => {

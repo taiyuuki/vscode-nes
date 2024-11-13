@@ -5,9 +5,11 @@
 <a href="https://marketplace.visualstudio.com/items?itemName=taiyuuki.vscode-nes">
 <img alt="Marketplace Version" src="https://img.shields.io/visual-studio-marketplace/v/taiyuuki.vscode-nes?color=%0eb0c9&label=Marketplace&logo=visual%20studio%20code"></a>
 
-这是一款可以玩 FC(NES) 游戏的 VS Code 插件，内置大约400个游戏。
+这是一款可以玩 FC(NES) 游戏的 VS Code 插件，提供了约400个游戏，绝大多数是中文，全部可以运行，但个别游戏会有贴图显式错误的问题。
 
 受 [小霸王](https://marketplace.visualstudio.com/items?itemName=gamedilong.anes) 的启发，但它已经很久没有维护，新版本VS Code无法使用，于是我写了这个能用、且功能更强大的版本。
+
+最低支持VS Code版本：1.70.0
 
 ## 功能
 
@@ -36,17 +38,19 @@
 | 开始      | 1    |         |
 | 选择      | 2    |         |
 
-## 更新v0.2.0
+## 更新v0.3.0
 
-- 支持金手指
+- 内置约400个在线ROM地址。
+- 支持将ROM下载到本地。
+- 不再支持自定义在线ROM地址，如果需要玩其他游戏，建议添加本地ROM。
 
 ## 使用
 
-安装插件后，点击侧边栏的图标，然后选择游戏就可以玩了。
+安装插件后，点击侧边栏的手柄图标，然后选择游戏就可以玩了。
 
 由于安全策略的问题，每次选择游戏都需要手动点击屏幕中间的 `点我开始游戏` 才会运行。
 
-如果黑屏、不显示文字，点重置按钮试试，或者重新点击侧边栏中的游戏。
+如果黑屏、没反应、不显示文字等，重新点击侧边栏中的游戏即可。
 
 ## 配置项
 
@@ -99,4 +103,4 @@
 
 ## License
 
-MIT Copyright (c) 2023 Taiyuuki
+MIT Copyright (c) 2023-2024 Taiyuuki

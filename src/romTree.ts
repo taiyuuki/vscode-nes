@@ -23,7 +23,7 @@ export class LocalRomTree implements vscode.TreeDataProvider<RomTreeItem> {
         }
         const result: RomTreeItem[] = []
         list.forEach(key => {
-            result.push(new RomTreeItem(key, localRoms[key], 'local', new vscode.ThemeIcon('file')))
+            result.push(new RomTreeItem(key, localRoms[key], 'local', join(__dirname, '../res/nes-rom.svg')))
         })
 
         return Promise.resolve(result)
@@ -71,7 +71,8 @@ export class RemoteRomTree implements vscode.TreeDataProvider<RomTreeItem> {
             }
             else {
                 games.filter(game => game.type === element.key).forEach(game => {
-                    result.push(new RomTreeItem(game.title, `${baseURL + game.title}.nes`, game.type, join(__dirname, '../res/nes-rom.svg')))
+                    const icon = game.title in localRoms ? join(__dirname, '../res/nes-rom.svg') : new vscode.ThemeIcon('file')
+                    result.push(new RomTreeItem(game.title, `${baseURL + game.title}.nes`, game.type, icon))
                 })
             }
 

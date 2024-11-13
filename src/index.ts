@@ -1,6 +1,7 @@
 import { basename, join } from 'node:path'
 import os from 'node:os'
 import { copyFileSync, writeFileSync } from 'node:fs'
+import { nextTick } from 'node:process'
 import * as vscode from 'vscode'
 import { ensureExists, getHtml, isUrl, localRoms, removeRom, saveLocalRoms } from './utils'
 import { LocalRomTree, RemoteRomTree } from './romTree'
@@ -72,6 +73,7 @@ export function activate(context: vscode.ExtensionContext) {
                     writeFileSync(filePath, Buffer.from(rom))
                     saveLocalRoms(localRoms)
                     localROMTree.emitDataChange.call(localROMTree)
+                    remoteROMTree.emitDataChange.call(remoteROMTree)
                 }
             })
         }
@@ -112,6 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
     const removeRomDispose = vscode.commands.registerCommand('vscodeNes.remove', item => {
         removeRom(item.label)
         localROMTree.emitDataChange.call(localROMTree)
+        remoteROMTree.emitDataChange.call(remoteROMTree)
     })
     const likeRomDispose = vscode.commands.registerCommand('vscodeNes.like', item => {
         

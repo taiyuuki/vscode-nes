@@ -91,6 +91,14 @@
           "when": "view == localROM"
         },
         {
+          "command": "vscodeNes.like",
+          "when": "viewItem == remoteROM"
+        },
+        {
+          "command": "vscodeNes.dislike",
+          "when": "viewItem == likes"
+        },
+        {
           "command": "vscodeNes.remove",
           "when": "view == localROM",
           "group": "inline",
