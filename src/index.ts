@@ -1,7 +1,6 @@
 import { basename, join } from 'node:path'
 import os from 'node:os'
 import { copyFileSync, writeFileSync } from 'node:fs'
-import { nextTick } from 'node:process'
 import * as vscode from 'vscode'
 import { ensureExists, getHtml, isUrl, localRoms, removeRom, saveLocalRoms } from './utils'
 import { LocalRomTree, RemoteRomTree } from './romTree'
