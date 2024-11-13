@@ -1425,10 +1425,6 @@ const games = [
         type: 'ACT',
     },
     {
-        title: '超级玛利欧兄弟3 (v20160603) (日繁)',
-        type: 'ACT',
-    },
-    {
         title: '超级魂斗罗 (简)',
         type: 'ACT',
     },
