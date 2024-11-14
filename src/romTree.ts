@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import * as vscode from 'vscode'
 import { RomGroupTreeItem, RomTreeItem } from './romTreeItem'
-import { likesRoms, localRoms, objectKeys, saveLikes } from './utils'
+import { groupBy, likesRoms, localRoms, objectKeys, saveLikes } from './utils'
 import { baseURL, games, types } from './games'
 
 export class LocalRomTree implements vscode.TreeDataProvider<RomTreeItem> {
@@ -34,9 +34,11 @@ export class RemoteRomTree implements vscode.TreeDataProvider<RomTreeItem> {
     private readonly _onChangeTreeData = new vscode.EventEmitter<RomTreeItem | undefined>()
     public readonly onDidChangeTreeData = this._onChangeTreeData.event
     public likes: Record<string, string>
+    public games: Record<string, { title: string, type: string }[]>
 
     constructor() {
         this.likes = likesRoms
+        this.games = groupBy(games, game => game.type)
         vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('vscodeNes.romPath')) {
                 this._onChangeTreeData.fire(void 0)
@@ -70,7 +72,8 @@ export class RemoteRomTree implements vscode.TreeDataProvider<RomTreeItem> {
                 })
             }
             else {
-                games.filter(game => game.type === element.key).forEach(game => {
+
+                this.games[element.key].forEach(game => {
                     const icon = game.title in localRoms ? join(__dirname, '../res/nes-rom.svg') : new vscode.ThemeIcon('file')
                     result.push(new RomTreeItem(game.title, `${baseURL + game.title}.nes`, game.type, icon))
                 })
