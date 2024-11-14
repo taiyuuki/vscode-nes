@@ -1469,7 +1469,7 @@ const games = [
         type: 'PUZ',
     },
     {
-        title: '雪人兄弟 (简)',
+        title: '雪人兄弟',
         type: 'ACT',
     },
     {
