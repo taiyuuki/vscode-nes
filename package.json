@@ -20,18 +20,10 @@
     "Emulator"
   ],
   "engines": {
-    "vscode": "^1.70.0"
+    "vscode": "^1.75.0"
   },
   "categories": [
     "Other"
-  ],
-  "activationEvents": [
-    "onCommand:vscodeNes.add",
-    "onCommand:vscodeNes.remove",
-    "onCommand:vscodeNes.like",
-    "onCommand:vscodeNes.dislike",
-    "onView:remoteROM",
-    "onView:localROM"
   ],
   "contributes": {
     "commands": [
@@ -156,9 +148,11 @@
     }
   },
   "scripts": {
-    "lint": "eslint --ext .js,.ts ./",
+    "lint": "eslint --fix",
     "dev": "tsup --watch",
+    "build:webview": "pnpm --prefix www run build",
     "build": "tsup",
+    "build:all": "pnpm run build:webview && pnpm run build",
     "bump:patch": "bump patch",
     "package": "pnpx vsce package --no-dependencies",
     "publish": "vsce publish",
@@ -170,13 +164,13 @@
     "dist"
   ],
   "devDependencies": {
-    "@taiyuuki/eslint-config": "^1.4.15",
+    "@taiyuuki/eslint-config": "^1.5.6",
     "@types/node": "^22.9.0",
     "@types/request": "^2.48.12",
-    "@types/vscode": "^1.70.0",
-    "@vscode/test-electron": "^2.4.1",
-    "@vscode/vsce": "^3.2.1",
-    "eslint": "^9.14.0",
-    "tsup": "^8.3.5"
+    "@types/vscode": "^1.75.0",
+    "@vscode/test-electron": "2.5.2",
+    "@vscode/vsce": "3.6.0",
+    "eslint": "9.36.0",
+    "tsup": "8.5.0"
   }
 }

@@ -1,0 +1,1 @@
+import{n as r}from"./Mapper-DR43KiVi-C3VBMEhO.js";import"./index-C1mDYnUx.js";class o extends r{loadROM(){super.loadROM();for(let s=0;s<32;++s)this.prg_map[s]=1024*s&this.prgsize-1;for(let s=0;s<8;++s)this.chr_map[s]=1024*s&this.chrsize-1}}export{o as default};

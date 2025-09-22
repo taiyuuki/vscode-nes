@@ -33,13 +33,12 @@ export const likesRoms: Record<string, string> = (function() {
 })()
 
 export function getHtml(extentionPath: string, panel: WebviewPanel) {
-    const reg = /(<link.+?href="|<script.+?src="|<img.+?src=")(.+?)"/g
     let html = readFileSync(join(extentionPath, 'res/webview/index.html'), 'utf-8')
-    let match = reg.exec(html)
-    while (match) {
-        html = html.replace(match[2], panel.webview.asWebviewUri(Uri.file(join(extentionPath, `res/webview/${match[2]}`))).toString())
-        match = reg.exec(html)
-    }
+
+    // Inject or replace a base href so that any relative URLs resolve correctly in Webview
+    const baseHref = `${panel.webview.asWebviewUri(Uri.file(join(extentionPath, 'res/webview/'))).toString()}/`
+
+    html = html.replace(/<head>/i, `<head>\n    <base href="${baseHref}">`)
 
     return html
 }

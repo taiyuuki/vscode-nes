@@ -39,20 +39,65 @@ export function activate(context: vscode.ExtensionContext) {
     })
 
     let isDisposed = true
+    let pendingPlayCommand: { lable: string; url: string; isLocal: boolean } | null = null
+    
     const sendMessage = vscode.commands.registerCommand('vscodeNes.sendMessage', (message: string) => {
         vscode.window.showInformationMessage(message)
     })
+    
     const playCommand = vscode.commands.registerCommand('vscodeNes.play', (lable: string, url: string) => {
-        if (isDisposed) {
+
+        // 处理URL转换
+        let isLocal = false
+        if (!isUrl(url)) {
+            isLocal = true
+        }
+        else if (lable in localRoms) {
+            isLocal = true
+            url = localRoms[lable]
+        }
+        
+        if (isDisposed || !panel) {
             isDisposed = false
+
+            // 暂存play命令，等webview准备好后再执行
+            pendingPlayCommand = { lable, url, isLocal }
+            
             setPanel(context)
             panel.webview.postMessage({ type: 'setController', controller })
             panel.onDidDispose(() => {
                 isDisposed = true
+                pendingPlayCommand = null
             })
             panel.webview.onDidReceiveMessage(data => {
                 if (data.type === 'error') {
                     vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
+                }
+                else if (data.type === 'info') {
+                    vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
+                }
+                else if (data.type === 'ready') {
+
+                    // webview已准备就绪，执行待执行的play命令
+                    if (pendingPlayCommand) {
+
+                        // 在这里进行URL转换，确保panel已经创建
+                        let finalUrl = pendingPlayCommand.url
+                        if (!isUrl(finalUrl)) {
+                            finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(finalUrl)).toString()
+                        }
+                        else if (pendingPlayCommand.lable in localRoms) {
+                            finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[pendingPlayCommand.lable])).toString()
+                        }
+                        
+                        panel.webview.postMessage({ 
+                            type: 'play', 
+                            lable: pendingPlayCommand.lable,
+                            url: finalUrl,
+                            isLocal: pendingPlayCommand.isLocal,
+                        })
+                        pendingPlayCommand = null
+                    }
                 }
                 else if (data.type === 'download') {
                     const userPath = join(os.homedir(), LOCAL_FOLDER)
@@ -76,26 +121,27 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             })
         }
-        else{
+        else {
             panel.reveal()
+            
+            // 如果webview已经存在，转换URL并直接发送play消息
+            let finalUrl = url
+            if (!isUrl(url)) {
+                finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
+            }
+            else if (lable in localRoms) {
+                finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[lable])).toString()
+            }
+            
+            panel.webview.postMessage({ type: 'play', lable, url: finalUrl, isLocal })
         }
-        let isLocal = false
-        if (!isUrl(url)) {
-            url = panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
-            isLocal = true
-        }
-        else if (lable in localRoms) {
-            isLocal = true
-            url = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[lable])).toString()
-        }
-        panel.webview.postMessage({ type: 'play', lable, url, isLocal })
     })
     const addRomDispose = vscode.commands.registerCommand('vscodeNes.add', async() => {
         const files = await vscode.window.showOpenDialog({
             canSelectFiles: true,
             canSelectFolders: false,
             canSelectMany: true,
-            filters: { nes: ['nes'] },
+            filters: { nes: ['nes', 'nsf'] },
             defaultUri: vscode.Uri.file('D:\\'),
         })
 
