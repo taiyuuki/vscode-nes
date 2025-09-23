@@ -23,6 +23,7 @@ interface EmulatorSettings {
     muted: boolean
     volume: number
     clip8px: boolean
+    notifications: boolean
 }
 
 interface CheatCode {
@@ -49,6 +50,7 @@ const settings = reactive<EmulatorSettings>({
     muted: false,
     volume: 0.8,
     clip8px: false,
+    notifications: true,
 })
 
 // 金手指
@@ -58,6 +60,13 @@ const newCheatDesc = ref('')
 
 // 存档数据
 const gameData = ref<Record<string, GameData>>({})
+
+// 通知
+function notify(type: 'info' | 'error', message: string) {
+    if (settings.notifications) {
+        vscode.postMessage({ type, message })
+    }
+}
 
 // IndexedDB 操作
 let db: IDBDatabase
@@ -144,7 +153,7 @@ async function saveState(slotId: number) {
     try {
         const stateData = emu.saveState()
         if (!stateData) {
-            vscode.postMessage({ type: 'error', message: '保存状态失败' })
+            notify('error', '保存状态失败')
 
             return
         }
@@ -178,13 +187,12 @@ async function saveState(slotId: number) {
         else {
             gameInfo.saves.push(saveState)
         }
-    
-        showSaveMenu.value = false
-        vscode.postMessage({ type: 'info', message: `游戏已保存到存档槽 ${slotId}` })
+
+        notify('info', `游戏已保存到存档槽 ${slotId}`)
     }
     catch(error) {
         console.error('保存失败:', error)
-        vscode.postMessage({ type: 'error', message: '保存失败' })
+        notify('error', '保存失败')
     }
 }
 
@@ -194,11 +202,11 @@ async function loadState(saveState: SaveState) {
     try {
         emu.loadState(saveState.data)
         showSaveMenu.value = false
-        vscode.postMessage({ type: 'info', message: `已加载存档: ${saveState.name}` })
+        notify('info', `已加载存档: ${saveState.name}`)
     }
     catch(error) {
         console.error('加载存档失败:', error)
-        vscode.postMessage({ type: 'error', message: '加载存档失败' })
+        notify('error', '加载存档失败')
     }
 }
 
@@ -213,12 +221,12 @@ async function deleteSave(saveState: SaveState) {
                 gameInfo.saves.splice(index, 1)
             }
         }
-    
-        vscode.postMessage({ type: 'info', message: '存档已删除' })
+
+        notify('info', '存档已删除')
     }
     catch(error) {
         console.error('删除存档失败:', error)
-        vscode.postMessage({ type: 'error', message: '删除存档失败' })
+        notify('error', '删除存档失败')
     }
 }
 
@@ -291,14 +299,14 @@ async function addCheat() {
         // 检查是否已存在相同代码的金手指
         const existingCheat = cheats.value.find(c => c.code === newCheatCode.value)
         if (existingCheat) {
-            vscode.postMessage({ type: 'error', message: '该金手指已存在' })
+            notify('error', '该金手指已存在')
 
             return
         }
         
         const success = emu.addCheat(newCheatCode.value)
         if (!success) {
-            vscode.postMessage({ type: 'error', message: '无效的金手指代码' })
+            notify('error', '无效的金手指代码')
 
             return
         }
@@ -319,12 +327,12 @@ async function addCheat() {
         cheats.value.push(cheat)
         newCheatCode.value = ''
         newCheatDesc.value = ''
-    
-        vscode.postMessage({ type: 'info', message: '金手指已添加' })
+
+        notify('info', '金手指已添加')
     }
     catch(error) {
         console.error('添加金手指失败:', error)
-        vscode.postMessage({ type: 'error', message: '添加金手指失败' })
+        notify('error', '添加金手指失败')
     }
 }
 
@@ -344,7 +352,7 @@ async function toggleCheat(cheat: CheatCode) {
                 cheat.enabled = true
             }
             else {
-                vscode.postMessage({ type: 'error', message: '无效的金手指代码' })
+                notify('error', '无效的金手指代码')
 
                 return
             }
@@ -376,8 +384,8 @@ async function removeCheat(cheat: CheatCode) {
     
         // 从数据库删除
         await deleteFromIndexedDB('cheats', `${currentGame.value}_${cheat.code}`)
-    
-        vscode.postMessage({ type: 'info', message: '金手指已移除' })
+
+        notify('info', '金手指已移除')
     }
     catch(error) {
         console.error('移除金手指失败:', error)
@@ -462,9 +470,9 @@ function removeCheatCode(cheat: CheatCode) {
 }
 
 async function enableAudio() {
-    if (emu && !settings.muted) {
+    if (emu) {
         await emu.enableAudio()
-        emu.setVolume(settings.volume)
+        emu.setVolume(settings.muted ? 0 : settings.volume)
     }
 }
 
@@ -515,13 +523,15 @@ onMounted(async() => {
                 }
                 catch(error) {
                     console.error('加载游戏失败:', error)
-                    vscode.postMessage({ type: 'error', message: '加载游戏失败' })
+                    notify('error', '加载游戏失败')
                 }
                 break
         
             case 'setController':
 
                 // 处理控制器设置
+                emu.setupKeyboadController(1, e.data.controller.p1)
+                emu.setupKeyboadController(2, e.data.controller.p2)
                 break
         
             case 'delete':
@@ -563,31 +573,31 @@ onMounted(async() => {
           class="control-btn"
           @click="togglePlayPause"
         >
-          {{ isPaused ? '▶️' : '⏸️' }}
+          {{ isPaused ? '播放' : '暂停' }}
         </button>
         <button
           class="control-btn"
           @click="resetGame"
         >
-          🔄
+          重启
         </button>
         <button
           class="control-btn"
           @click="showSaveMenu = true"
         >
-          💾
+          存档
         </button>
         <button
           class="control-btn"
           @click="showSettings = true"
         >
-          ⚙️
+          设置
         </button>
         <button
           class="control-btn"
           @click="showCheatMenu = true"
         >
-          🎮
+          金手指
         </button>
       </div>
     </div>
@@ -613,7 +623,7 @@ onMounted(async() => {
         </div>
         <div class="save-slots">
           <div
-            v-for="slotId in [1, 2, 3]"
+            v-for="slotId in [1, 2, 3, 4]"
             :key="slotId"
             class="save-slot-row"
           >
@@ -664,17 +674,17 @@ onMounted(async() => {
                 读档
               </button>
               <button
-                class="action-btn save-btn"
-                @click="saveGameState(slotId)"
-              >
-                存档
-              </button>
-              <button
                 v-if="getSaveBySlot(slotId)"
                 class="action-btn delete-btn"
                 @click="deleteSave(getSaveBySlot(slotId)!)"
               >
                 删除
+              </button>
+              <button
+                class="action-btn save-btn"
+                @click="saveGameState(slotId)"
+              >
+                存档
               </button>
             </div>
           </div>
@@ -703,15 +713,26 @@ onMounted(async() => {
         </div>
         <div class="settings-content">
           <div class="setting-group">
-            <label>缩放倍数: {{ settings.scale }}x</label>
-            <input 
-              v-model.number="settings.scale" 
-              type="range" 
-              min="1" 
-              max="4" 
-              step="1"
-              @input="applySettings"
+            <label>缩放倍数: </label>
+            <select
+              id="scale"
+              v-model="settings.scale"
+              name="scale"
+              @change="applySettings"
             >
+              <option value="1">
+                1x
+              </option>
+              <option value="2">
+                2x
+              </option>
+              <option value="3">
+                3x
+              </option>
+              <option value="4">
+                4x
+              </option>
+            </select>
           </div>
           
           <div class="setting-group">
@@ -721,18 +742,7 @@ onMounted(async() => {
                 type="checkbox" 
                 @change="applySettings"
               >
-              启用抗锯齿
-            </label>
-          </div>
-          
-          <div class="setting-group">
-            <label>
-              <input 
-                v-model="settings.clip8px" 
-                type="checkbox" 
-                @change="applySettings"
-              >
-              裁剪边框
+              抗锯齿
             </label>
           </div>
           
@@ -747,6 +757,28 @@ onMounted(async() => {
             </label>
           </div>
           
+          <div class="setting-group">
+            <label>
+              <input 
+                v-model="settings.clip8px" 
+                type="checkbox" 
+                @change="applySettings"
+              >
+              裁剪边框
+            </label>
+          </div>
+
+          <div class="setting-group">
+            <label>
+              <input 
+                v-model="settings.notifications" 
+                type="checkbox" 
+                @change="saveSettings"
+              >
+              通知
+            </label>
+          </div>
+
           <div
             v-if="!settings.muted"
             class="setting-group"
@@ -1049,6 +1081,7 @@ onMounted(async() => {
 .save-actions {
   display: flex;
   flex-direction: row;
+  justify-content: flex-end;
   gap: 6px;
   min-width: 160px;
   align-items: center;
@@ -1116,21 +1149,23 @@ onMounted(async() => {
 
 .setting-group {
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
 }
 
 .setting-group label {
   display: block;
-  margin-bottom: 8px;
   font-size: 14px;
 }
 
-.setting-group input[type="range"] {
-  width: 100%;
-  margin-top: 5px;
+.setting-group select {
+  flex: 1;
+  margin-left: 10px;
 }
 
-.setting-group input[type="checkbox"] {
-  margin-right: 8px;
+.setting-group input[type="range"] {
+  flex: 1;
+  margin-left: 10px;
 }
 
 /* 金手指样式 */

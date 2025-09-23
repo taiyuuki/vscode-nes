@@ -9,7 +9,9 @@
 
 受 [小霸王](https://marketplace.visualstudio.com/items?itemName=gamedilong.anes) 的启发，但它已经很久没有维护，新版本VS Code无法使用，于是我写了这个能用、且功能更强大的版本。
 
-最低支持VS Code版本：1.70.0
+v1.0.0版本使用[nesjs](https://nesjs.netlify.app/)，大幅提升了对各种Mapper的支持，现在能支持绝大多数常见Mapper了。
+
+最低支持VS Code版本：1.75.0
 
 ## 功能
 
@@ -18,7 +20,8 @@
 - [x] 支持即时保存、读取
 - [x] 支持切换分辨率
 - [x] 支持暂停、静音
-- [x] 支持加载本地ROM
+- [x] 支持本地ROM
+- [x] 支持nsf音乐
 - [x] 支持双人
 - [x] 支持自定义按键
 - [x] 支持金手指
@@ -38,11 +41,9 @@
 | 开始      | 1    |         |
 | 选择      | 2    |         |
 
-## 更新v0.3.0
+## 更新v1.0.0
 
-- 内置约400个在线ROM地址。
-- 支持将ROM下载到本地。
-- 不再支持自定义在线ROM地址，如果需要玩其他游戏，建议添加本地ROM。
+- 使用nesjs替换jsnes，大幅提升Mapper兼容性，现在能支持绝大多数常见Mapper了
 
 ## 使用
 

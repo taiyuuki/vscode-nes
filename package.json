@@ -2,7 +2,7 @@
   "name": "vscode-nes",
   "displayName": "红白机",
   "publisher": "taiyuuki",
-  "version": "0.3.3",
+  "version": "1.0.0",
   "description": "红白机模拟器，支持手柄、存档、金手指。",
   "main": "./dist/index.js",
   "repository": {
