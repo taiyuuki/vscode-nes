@@ -4,6 +4,7 @@ import { copyFileSync, writeFileSync } from 'node:fs'
 import * as vscode from 'vscode'
 import { LOCAL_FOLDER, ensureExists, getHtml, isUrl, localRoms, removeRom, saveLocalRoms } from './utils'
 import { LocalRomTree, RemoteRomTree } from './romTree'
+import { getGameDao, initDb } from './sqlite3/db'
 
 let panel!: vscode.WebviewPanel
 
@@ -15,7 +16,7 @@ function setPanel(context: vscode.ExtensionContext) {
             vscode.Uri.file(join(os.homedir(), LOCAL_FOLDER)),
             vscode.Uri.file(join(context.extensionPath, 'res')),
         ],
-    })
+    }) 
     panel.webview.html = getHtml(context.extensionPath, panel)
     panel.iconPath = vscode.Uri.file(join(context.extensionPath, 'res/famicom.svg'))
     context.subscriptions.push(panel)
@@ -26,6 +27,12 @@ export function activate(context: vscode.ExtensionContext) {
     const localROMTree = new LocalRomTree()
     const remoteROMTreeData = vscode.window.registerTreeDataProvider('remoteROM', remoteROMTree)
     const localROMTreeData = vscode.window.registerTreeDataProvider('localROM', localROMTree)
+
+    // 初始化数据库，传入插件扩展路径
+    initDb(context.extensionPath)
+    
+    const gameDao = getGameDao()
+    console.log('rpg', gameDao.getByType1('RPG'))
 
     let controller = vscode.workspace.getConfiguration('vscodeNes').get('controller')
 

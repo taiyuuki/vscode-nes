@@ -25,6 +25,7 @@
   "categories": [
     "Other"
   ],
+  "activationEvents": [],
   "contributes": {
     "commands": [
       {
@@ -172,5 +173,8 @@
     "@vscode/vsce": "3.6.0",
     "eslint": "9.36.0",
     "tsup": "8.5.0"
+  },
+  "dependencies": {
+    "node-sqlite3-wasm": "^0.8.50"
   }
 }
