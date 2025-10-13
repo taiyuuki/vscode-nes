@@ -59,13 +59,18 @@
       ]
     },
     "views": {
-      "vscode-nes": [
+  "vscode-nes": [
         {
-          "id": "remoteROM",
+          "id": "vscodeNes.searchROM",
+          "name": "搜索",
+          "type": "webview"
+        },
+        {
+          "id": "vscodeNes.remoteROM",
           "name": "远程ROM"
         },
         {
-          "id": "localROM",
+          "id": "vscodeNes.localROM",
           "name": "本地ROM"
         }
       ]
@@ -74,14 +79,14 @@
       "view/title": [
         {
           "command": "vscodeNes.add",
-          "when": "view == localROM",
+          "when": "view == vscodeNes.localROM",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
           "command": "vscodeNes.remove",
-          "when": "view == localROM"
+          "when": "view == vscodeNes.localROM"
         },
         {
           "command": "vscodeNes.like",
@@ -162,7 +167,8 @@
   "author": "taiyuuki <taiyuuki@qq.com>",
   "license": "MIT",
   "files": [
-    "dist"
+  "dist",
+  "res"
   ],
   "devDependencies": {
     "@taiyuuki/eslint-config": "^1.5.6",

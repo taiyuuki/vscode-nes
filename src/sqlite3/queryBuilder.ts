@@ -6,7 +6,8 @@ import type { Database } from 'node-sqlite3-wasm'
 export class QueryBuilder {
     private db: Database
     private tableName: string
-    private conditions: string[] = []
+
+    private conditions: { conj: 'AND' | 'OR'; sql: string }[] = []
     private params: any[] = []
     private fields: string = '*'
     private limit: number | null = null
@@ -18,9 +19,6 @@ export class QueryBuilder {
         this.tableName = tableName
     }
 
-    /**
-   * 指定要查询的字段
-   */
     select(fields: string[] | string): QueryBuilder {
         if (Array.isArray(fields)) {
             this.fields = fields.join(', ')
@@ -32,49 +30,73 @@ export class QueryBuilder {
         return this
     }
 
-    /**
-   * 添加WHERE条件
-   */
     where(field: string, operator: string, value: any): QueryBuilder {
-        this.conditions.push(`${field} ${operator} ?`)
-        this.params.push(value)
+        this.addCondition('AND', `${field} ${operator} ?`, value)
 
         return this
     }
 
-    /**
-   * 添加LIKE条件
-   */
+    orWhere(field: string, operator: string, value: any): QueryBuilder {
+        this.addCondition('OR', `${field} ${operator} ?`, value)
+
+        return this
+    }
+
     whereLike(field: string, value: string): QueryBuilder {
-        this.conditions.push(`${field} LIKE ?`)
-        this.params.push(`%${value}%`)
+        this.addCondition('AND', `${field} LIKE ?`, `%${value}%`)
 
         return this
     }
 
-    /**
-   * 添加IN条件
-   */
+    orWhereLike(field: string, value: string): QueryBuilder {
+        this.addCondition('OR', `${field} LIKE ?`, `%${value}%`)
+
+        return this
+    }
+
     whereIn(field: string, values: any[]): QueryBuilder {
         const placeholders = values.map(() => '?').join(', ')
-        this.conditions.push(`${field} IN (${placeholders})`)
-        this.params.push(...values)
+        this.addCondition('AND', `${field} IN (${placeholders})`, ...values)
 
         return this
     }
 
-    /**
-   * 添加排序
-   */
+    orWhereIn(field: string, values: any[]): QueryBuilder {
+        const placeholders = values.map(() => '?').join(', ')
+        this.addCondition('OR', `${field} IN (${placeholders})`, ...values)
+
+        return this
+    }
+
+    whereRaw(sql: string, params: any[] = []): QueryBuilder {
+        this.addCondition('AND', sql, ...params)
+
+        return this
+    }
+
+    orWhereRaw(sql: string, params: any[] = []): QueryBuilder {
+        this.addCondition('OR', sql, ...params)
+
+        return this
+    }
+
     order(field: string, direction: 'ASC' | 'DESC' = 'ASC'): QueryBuilder {
         this.orderBy = `ORDER BY ${field} ${direction}`
 
         return this
     }
 
-    /**
-   * 添加分页限制
-   */
+    reset(): QueryBuilder {
+        this.conditions = []
+        this.params = []
+        this.fields = '*'
+        this.limit = null
+        this.offset = 0
+        this.orderBy = ''
+
+        return this
+    }
+
     setLimit(limit: number, offset: number = 0): QueryBuilder {
         this.limit = limit
         this.offset = offset
@@ -88,12 +110,12 @@ export class QueryBuilder {
     all<T = any>(): T[] {
         const sql = this.buildSelectSQL()
 
-        return this.db.all(sql, ...this.params) as T[]
+        return this.db.all(sql, this.params) as T[]
     }
 
     get<T = any>(): T | null {
         const sql = this.buildSelectSQL()
-        const result = this.db.get(sql, ...this.params) as T | undefined
+        const result = this.db.get(sql, this.params) as T | undefined
 
         return result || null
     }
@@ -102,7 +124,8 @@ export class QueryBuilder {
         this.tableName = `${this.tableName} JOIN ${queryBuilder.tableName} AS ${alias} ON ${this.tableName}.${localKey} = ${alias}.${foreignKey}`
         this.params.push(...queryBuilder.params)
         if (queryBuilder.conditions.length > 0) {
-            this.conditions.push(...queryBuilder.conditions)
+
+            queryBuilder.conditions.forEach(c => this.addCondition(c.conj, c.sql))
         }
 
         return this
@@ -113,20 +136,44 @@ export class QueryBuilder {
    */
     private buildSelectSQL(): string {
         let sql = `SELECT ${this.fields} FROM ${this.tableName}`
-    
+
         if (this.conditions.length > 0) {
-            sql += ` WHERE ${this.conditions.join(' AND ')}`
+
+            // 首条条件不加连接词
+            const condSql = this.conditions
+                .map((c, idx) => idx === 0 ? c.sql : `${c.conj} ${c.sql}`)
+                .join(' ')
+            sql += ` WHERE ${condSql}`
         }
-    
+
         if (this.orderBy) {
             sql += ` ${this.orderBy}`
         }
-    
+
         if (this.limit !== null) {
             sql += ` LIMIT ${this.limit} OFFSET ${this.offset}`
         }
-    
+
         return sql
+    }
+
+    private addCondition(conj: 'AND' | 'OR', sql: string, ...params: any[]) {
+        this.conditions.push({ conj, sql })
+        if (params.length) this.params.push(...params)
+    }
+
+    /** 统计行数 */
+    count(): number {
+        let sql = `SELECT COUNT(*) as _cnt FROM ${this.tableName}`
+        if (this.conditions.length > 0) {
+            const condSql = this.conditions
+                .map((c, idx) => idx === 0 ? c.sql : `${c.conj} ${c.sql}`)
+                .join(' ')
+            sql += ` WHERE ${condSql}`
+        }
+        const row = this.db.get(sql, this.params) as { _cnt: number } | undefined
+
+        return row?._cnt ?? 0
     }
 }
 

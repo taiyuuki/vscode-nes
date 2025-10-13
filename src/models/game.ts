@@ -21,36 +21,65 @@ export interface Game {
 export class GameDao {
     private tableName = 'game'
     private qb: QueryBuilder
+    private db: Database
 
     constructor(db: Database) {
+        this.db = db
         this.qb = new QueryBuilder(db, this.tableName)
     }
 
     getAll(): Game[] {
         return this.qb
+            .reset()
             .select('*')
             .all<Game>()
     }
 
     getById(id: number): Game | null {
         return this.qb
+            .reset()
             .where('id', '=', id)
             .get<Game>()
     }
 
     getByType1(type1_en: string): Game[] {
         return this.qb
+            .reset()
             .where('type1_en', '=', type1_en)
             .order('name_cn', 'ASC')
             .all<Game>()
     }
 
     searchByName(name: string): Game[] {
+        const kw = name.toLowerCase()
+        const pattern = `%${kw}%`
+        
         return this.qb
-            .whereLike('name_cn', name)
-            .whereLike('name_en', name)
-            .whereLike('name_jp', name)
+            .reset()
+            .whereRaw('LOWER(name_cn) LIKE ?', [pattern])
+            .orWhereRaw('LOWER(name_en) LIKE ?', [pattern])
+            .orWhereRaw('LOWER(name_jp) LIKE ?', [pattern])
             .order('name_cn', 'ASC')
             .all<Game>()
+    }
+
+    searchByNamePaged(name: string, page: number, pageSize: number) {
+        const kw = name.toLowerCase()
+        const pattern = `%${kw}%`
+        const qb = this.qb.reset()
+            .whereRaw('LOWER(name_cn) LIKE ?', [pattern])
+            .orWhereRaw('LOWER(name_en) LIKE ?', [pattern])
+            .orWhereRaw('LOWER(name_jp) LIKE ?', [pattern])
+        const total = qb.count()
+        if (!total) return { list: [] as Game[], total: 0, totalPages: 0, page: 0, pageSize }
+        const totalPages = Math.ceil(total / pageSize)
+        const safePage = Math.min(Math.max(1, page), totalPages)
+        const offset = (safePage - 1) * pageSize
+        const list = qb
+            .order('name_cn', 'ASC')
+            .setLimit(pageSize, offset)
+            .all<Game>()
+
+        return { list, total, totalPages, page: safePage, pageSize }
     }
 }

@@ -1,6 +1,6 @@
 import { basename, join } from 'node:path'
 import os from 'node:os'
-import { copyFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
 import * as vscode from 'vscode'
 import { LOCAL_FOLDER, ensureExists, getHtml, isUrl, localRoms, removeRom, saveLocalRoms } from './utils'
 import { LocalRomTree, RemoteRomTree } from './romTree'
@@ -16,95 +16,137 @@ function setPanel(context: vscode.ExtensionContext) {
             vscode.Uri.file(join(os.homedir(), LOCAL_FOLDER)),
             vscode.Uri.file(join(context.extensionPath, 'res')),
         ],
-    }) 
+    })
     panel.webview.html = getHtml(context.extensionPath, panel)
     panel.iconPath = vscode.Uri.file(join(context.extensionPath, 'res/famicom.svg'))
     context.subscriptions.push(panel)
 }
 
+class SearchWebviewProvider implements vscode.WebviewViewProvider {
+    gameDao = getGameDao()
+    private lastKeyword = ''
+    private pageSize = 10
+
+    constructor(private readonly extensionPath: string) {}
+
+    resolveWebviewView(view: vscode.WebviewView) {
+        view.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [vscode.Uri.file(join(this.extensionPath, 'res'))],
+        }
+
+        view.webview.html = this.loadHtml()
+
+        view.webview.onDidReceiveMessage(msg => {
+            if (msg.type === 'search') {
+                const kw: string = (msg.keyword || '').trim()
+                this.lastKeyword = kw
+
+                // 处理 pageSize（允许 5/10/20/50，自定义时夹到 1..100）
+                if (msg.pageSize) {
+                    const ps = Number(msg.pageSize) || 10
+                    const allowed = [5, 10, 20, 50]
+                    this.pageSize = allowed.includes(ps) ? ps : Math.min(100, Math.max(1, ps))
+                }
+                const pageData = this.searchPaged(kw, 1)
+                view.webview.postMessage({ type: 'results', keyword: kw, ...pageData })
+            }
+            else if (msg.type === 'page') {
+                const reqPage = msg.page || 1
+                const pageData = this.searchPaged(this.lastKeyword, reqPage)
+                view.webview.postMessage({ type: 'results', keyword: this.lastKeyword, ...pageData })
+            }
+            else if (msg.type === 'openRom') {
+                vscode.window.showInformationMessage(`打开假 ROM: ${msg.rom} (组: ${msg.group})`)
+            }
+        })
+    }
+
+    private searchPaged(kw: string, page: number) {
+        if (!kw) return { results: [], page: 0, pageSize: this.pageSize, total: 0, totalPages: 0 }
+
+        const { list, total, totalPages, page: realPage, pageSize } = this.gameDao.searchByNamePaged(kw, page, this.pageSize)
+
+        const results = list.map(g => {
+            const names = g.name_cn.split('；')
+            let name = names[0]
+            if (kw && !name.includes(kw)) {
+                const subname = names.find(n => n.includes(kw))
+                if (subname) name += ` (${subname})`
+            }
+
+            return { name, roms: JSON.parse(g.roms) as string[] }
+        })
+
+        return { results, page: realPage, pageSize, total, totalPages }
+    }
+
+    private loadHtml() {
+        const p = join(this.extensionPath, 'res', 'webview', 'search.html')
+        try {
+            return readFileSync(p, 'utf8').replace(/__NONCE__/g, getNonce())
+        }
+        catch(e) {
+            return `<html><body>缺少 search.html: ${(e as Error).message}</body></html>`
+        }
+    }
+
+    // 内存分页逻辑已移除，改为数据库分页
+}
+
+function getNonce() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+
+    return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}
+
 export function activate(context: vscode.ExtensionContext) {
+
+    initDb(context.extensionPath)
+
     const remoteROMTree = new RemoteRomTree()
     const localROMTree = new LocalRomTree()
-    const remoteROMTreeData = vscode.window.registerTreeDataProvider('remoteROM', remoteROMTree)
-    const localROMTreeData = vscode.window.registerTreeDataProvider('localROM', localROMTree)
-
-    // 初始化数据库，传入插件扩展路径
-    initDb(context.extensionPath)
-    
-    const gameDao = getGameDao()
-    console.log('rpg', gameDao.getByType1('RPG'))
+    context.subscriptions.push(
+        vscode.window.registerTreeDataProvider('vscodeNes.remoteROM', remoteROMTree),
+        vscode.window.registerTreeDataProvider('vscodeNes.localROM', localROMTree),
+        vscode.window.registerWebviewViewProvider('vscodeNes.searchROM', new SearchWebviewProvider(context.extensionPath)),
+    )
 
     let controller = vscode.workspace.getConfiguration('vscodeNes').get('controller')
-
     vscode.workspace.onDidChangeConfiguration(e => {
         if (e.affectsConfiguration('vscodeNes.controller')) {
             controller = vscode.workspace.getConfiguration('vscodeNes').get('controller')
-            if (panel) {
-                panel.webview.postMessage({ type: 'setController', controller })
-            }
+            if (panel) panel.webview.postMessage({ type: 'setController', controller })
         }
     })
 
     let isDisposed = true
-    let pendingPlayCommand: { lable: string; url: string; isLocal: boolean } | null = null
-    
-    const sendMessage = vscode.commands.registerCommand('vscodeNes.sendMessage', (message: string) => {
-        vscode.window.showInformationMessage(message)
-    })
-    
-    const playCommand = vscode.commands.registerCommand('vscodeNes.play', (lable: string, url: string) => {
+    let pendingPlay: { lable: string; url: string; isLocal: boolean } | null = null
 
-        // 处理URL转换
+    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.sendMessage', (m: string) => {
+        vscode.window.showInformationMessage(m)
+    }))
+
+    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.play', (lable: string, url: string) => {
         let isLocal = false
-        if (!isUrl(url)) {
-            isLocal = true
-        }
-        else if (lable in localRoms) {
-            isLocal = true
-            url = localRoms[lable]
-        }
-        
+        if (!isUrl(url)) isLocal = true
+        else if (lable in localRoms) { isLocal = true; url = localRoms[lable] }
         if (isDisposed || !panel) {
             isDisposed = false
-
-            // 暂存play命令，等webview准备好后再执行
-            pendingPlayCommand = { lable, url, isLocal }
-            
+            pendingPlay = { lable, url, isLocal }
             setPanel(context)
             panel.webview.postMessage({ type: 'setController', controller })
-            panel.onDidDispose(() => {
-                isDisposed = true
-                pendingPlayCommand = null
-            })
+            panel.onDidDispose(() => { isDisposed = true; pendingPlay = null })
             panel.webview.onDidReceiveMessage(data => {
-                if (data.type === 'error') {
+                if (data.type === 'error' || data.type === 'info') {
                     vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
                 }
-                else if (data.type === 'info') {
-                    vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
-                }
-                else if (data.type === 'ready') {
-
-                    // webview已准备就绪，执行待执行的play命令
-                    if (pendingPlayCommand) {
-
-                        // 在这里进行URL转换，确保panel已经创建
-                        let finalUrl = pendingPlayCommand.url
-                        if (!isUrl(finalUrl)) {
-                            finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(finalUrl)).toString()
-                        }
-                        else if (pendingPlayCommand.lable in localRoms) {
-                            finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[pendingPlayCommand.lable])).toString()
-                        }
-                        
-                        panel.webview.postMessage({ 
-                            type: 'play', 
-                            lable: pendingPlayCommand.lable,
-                            url: finalUrl,
-                            isLocal: pendingPlayCommand.isLocal,
-                        })
-                        pendingPlayCommand = null
-                    }
+                else if (data.type === 'ready' && pendingPlay) {
+                    let finalUrl = pendingPlay.url
+                    if (!isUrl(finalUrl)) finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(finalUrl)).toString()
+                    else if (pendingPlay.lable in localRoms) finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[pendingPlay.lable])).toString()
+                    panel.webview.postMessage({ type: 'play', lable: pendingPlay.lable, url: finalUrl, isLocal: pendingPlay.isLocal })
+                    pendingPlay = null
                 }
                 else if (data.type === 'download') {
                     const userPath = join(os.homedir(), LOCAL_FOLDER)
@@ -113,14 +155,8 @@ export function activate(context: vscode.ExtensionContext) {
                     ensureExists(savePath)
                     const filePath = join(savePath, data.fileName)
                     localRoms[data.fileName] = filePath
-                    const rom = []
-                    let i = 0
-                    let byte = data.content.charCodeAt(i)
-                    while(!Number.isNaN(byte)) {
-                        rom.push(byte)
-                        i += 1
-                        byte = data.content.charCodeAt(i)
-                    }
+                    const rom: number[] = []
+                    for (let i = 0; i < data.content.length; i++) rom.push(data.content.charCodeAt(i))
                     writeFileSync(filePath, Buffer.from(rom))
                     saveLocalRoms(localRoms)
                     localROMTree.emitDataChange.call(localROMTree)
@@ -130,20 +166,14 @@ export function activate(context: vscode.ExtensionContext) {
         }
         else {
             panel.reveal()
-            
-            // 如果webview已经存在，转换URL并直接发送play消息
             let finalUrl = url
-            if (!isUrl(url)) {
-                finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
-            }
-            else if (lable in localRoms) {
-                finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[lable])).toString()
-            }
-            
+            if (!isUrl(url)) finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
+            else if (lable in localRoms) finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[lable])).toString()
             panel.webview.postMessage({ type: 'play', lable, url: finalUrl, isLocal })
         }
-    })
-    const addRomDispose = vscode.commands.registerCommand('vscodeNes.add', async() => {
+    }))
+
+    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.add', async() => {
         const files = await vscode.window.showOpenDialog({
             canSelectFiles: true,
             canSelectFolders: false,
@@ -151,7 +181,6 @@ export function activate(context: vscode.ExtensionContext) {
             filters: { nes: ['nes', 'nsf'] },
             defaultUri: vscode.Uri.file('D:\\'),
         })
-
         if (files) {
             const userPath = join(os.homedir(), LOCAL_FOLDER)
             const savePath = join(userPath, 'roms')
@@ -161,36 +190,22 @@ export function activate(context: vscode.ExtensionContext) {
                 const filePath = join(savePath, basename(file.fsPath))
                 localRoms[basename(file.fsPath)] = filePath
                 copyFileSync(file.fsPath, filePath)
-                saveLocalRoms(localRoms)
             })
+            saveLocalRoms(localRoms)
             localROMTree.emitDataChange.call(localROMTree)
         }
-    })
-    const removeRomDispose = vscode.commands.registerCommand('vscodeNes.remove', item => {
-        removeRom(item.label)
-        localROMTree.emitDataChange.call(localROMTree)
-        remoteROMTree.emitDataChange.call(remoteROMTree)
-        if (panel) {
-            panel.webview.postMessage({ type: 'delete', lable: item.label })
-        }
-    })
-    const likeRomDispose = vscode.commands.registerCommand('vscodeNes.like', item => {
-        
-        remoteROMTree.addLike(item.label, item.tooltip)
-    })
-    const dislikeRomDispose = vscode.commands.registerCommand('vscodeNes.dislike', item => {
-        
-        remoteROMTree.removeLike(item.label)
-    })
+    }))
 
-    context.subscriptions.push(remoteROMTreeData)
-    context.subscriptions.push(localROMTreeData)
-    context.subscriptions.push(playCommand)
-    context.subscriptions.push(sendMessage)
-    context.subscriptions.push(addRomDispose)
-    context.subscriptions.push(removeRomDispose)
-    context.subscriptions.push(likeRomDispose)
-    context.subscriptions.push(dislikeRomDispose)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vscodeNes.remove', item => {
+            removeRom(item.label)
+            localROMTree.emitDataChange.call(localROMTree)
+            remoteROMTree.emitDataChange.call(remoteROMTree)
+            if (panel) panel.webview.postMessage({ type: 'delete', lable: item.label })
+        }),
+        vscode.commands.registerCommand('vscodeNes.like', item => { remoteROMTree.addLike(item.label, item.tooltip) }),
+        vscode.commands.registerCommand('vscodeNes.dislike', item => { remoteROMTree.removeLike(item.label) }),
+    )
 }
 
 export function deactivate(context: vscode.ExtensionContext) {
