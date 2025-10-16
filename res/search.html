@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; img-src data: vscode-resource: https:; style-src 'unsafe-inline' vscode-resource:; script-src 'nonce-__NONCE__';">
+    <title>搜索 ROM</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            font-family: var(--vscode-font-family);
+            padding: 8px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+            /* 只允许内部 results 自己滚动，避免双滚动条 */
+        }
+
+        form {
+            display: flex;
+            gap: 6px;
+        }
+
+        input[type=text] {
+            flex: 1;
+            padding: 4px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border, var(--vscode-editorWidget-border));
+        }
+
+        button {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 4px 12px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
+        .list-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 2px 0;
+        }
+
+        #results {
+            flex: 1;
+            overflow: auto;
+            border: 1px solid var(--vscode-panel-border, var(--vscode-editorWidget-border));
+            border-radius: 4px;
+            padding: 4px;
+            min-height: 0;
+            /* 允许在 flex 容器中正确收缩，避免挤压 pager */
+        }
+
+        .empty {
+            opacity: .6;
+            font-size: 12px;
+            padding: 4px;
+        }
+
+        .group {
+            border: 1px solid var(--vscode-widget-border);
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+
+        .group-header {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            padding: 4px 6px;
+            cursor: pointer;
+            user-select: none;
+            background: var(--vscode-tree-tableOddRowsBackground, var(--vscode-list-inactiveSelectionBackground));
+        }
+
+        .group-header:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+
+        .chevron {
+            transition: transform .15s;
+        }
+
+        .collapsed .chevron {
+            transform: rotate(-90deg);
+        }
+
+        .roms {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 4px 8px 8px 24px;
+        }
+
+        .rom {
+            padding: 2px 4px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .rom:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+
+        /* 去除关键字高亮样式（需求：不再高亮） */
+
+        .meta {
+            font-size: 11px;
+            opacity: .7;
+        }
+    </style>
+</head>
+
+<body>
+    <form id="f" style="flex-wrap:wrap;gap:6px;align-items:center;">
+        <select id="type1" title="游戏类型"
+            style="padding:2px 4px;background:var(--vscode-dropdown-background);color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);">
+            <option value="all">所有类型</option>
+            <option value="Action">动作</option>
+            <option value="Adventure">冒险</option>
+            <option value="RPG">RPG</option>
+            <option value="S.RPG">S.RPG</option>
+            <option value="A.RPG">A.RPG</option>
+            <option value="Intelligence">智力</option>
+            <option value="Sports">体育</option>
+            <option value="Shooting">射击</option>
+            <option value="Fighting">格斗</option>
+            <option value="Simulation">模拟</option>
+            <option value="Entertainment">娱乐</option>
+            <option value="Strategy">策略</option>
+            <option value="Other">其他</option>
+            <option value="Compilation">合卡</option>
+        </select>
+        <input id="kw" type="text" placeholder="输入关键字后回车" />
+        <button type="submit">搜索</button>
+    </form>
+    <div class="meta" id="meta">未搜索</div>
+    <div class="list-area">
+        <div id="results">
+            <div class="empty">暂无结果</div>
+        </div>
+        <div id="pager"
+            style="display:none;align-items:center;gap:8px;font-size:12px;flex-wrap:wrap;padding:4px 2px;margin-bottom:4px;">
+            <button id="prevBtn" type="button">上一页</button>
+            <span id="pageInfo"></span>
+            <label style="display:flex;align-items:center;gap:4px;">
+                每页:
+                <select id="pageSize" class="pager-select" title="每页数量"
+                    style="padding:2px 4px;background:var(--vscode-dropdown-background);color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+            </label>
+            <button id="nextBtn" type="button">下一页</button>
+        </div>
+    </div>
+    <script nonce="__NONCE__">
+        const vscode = acquireVsCodeApi();
+        const form = document.getElementById('f');
+        const typeSel = document.getElementById('type1');
+        const input = document.getElementById('kw');
+        const meta = document.getElementById('meta');
+        const results = document.getElementById('results');
+        const pageSizeSel = document.getElementById('pageSize');
+        const pager = document.getElementById('pager');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const pageInfo = document.getElementById('pageInfo');
+        let currentPage = 0;
+        let totalPages = 0;
+        let lastKeyword = '';
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const k = input.value.trim();
+            const ps = Number(pageSizeSel.value) || 10;
+            vscode.postMessage({ type: 'search', keyword: k, type1: typeSel.value, pageSize: ps });
+            meta.textContent = k ? '搜索中...' : '未搜索';
+        });
+
+        pageSizeSel.addEventListener('change', () => {
+            const k = input.value.trim();
+            const ps = Number(pageSizeSel.value) || 10;
+            vscode.postMessage({ type: 'search', keyword: k, type1: typeSel.value, pageSize: ps });
+            meta.textContent = k ? '搜索中...' : '未搜索';
+        });
+
+        window.addEventListener('message', e => {
+            const m = e.data;
+            if (m.type === 'results') {
+                lastKeyword = m.keyword;
+                currentPage = m.page;
+                totalPages = m.totalPages;
+                render(m.keyword, m.results, m.page, m.totalPages, m.total, m.pageSize);
+            }
+        });
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+        }
+        function render(kw, groups, page, totalPages, total, pageSize) {
+            if (!groups.length) { results.innerHTML = '<div class="empty">无结果</div>'; meta.textContent = kw ? '"' + kw + '" ：0 条' : '未搜索'; pager.style.display = 'none'; return; }
+            meta.textContent = '共' + total + '个游戏';
+            results.innerHTML = '';
+            groups.forEach(g => {
+                const names = g.name_cn.split('；')
+                let name = names[0]
+                if (kw && !name.includes(kw)) {
+                    const subname = names.find(n => n.includes(kw))
+                    if (subname) name += ` (${subname})`
+                }
+                const romList = JSON.parse(g.roms);
+
+                const wrap = document.createElement('div');
+                wrap.className = 'group';
+                wrap.innerHTML = '<div class="group-header"><span class="chevron">▾</span><span>' + escapeHtml(name) + '</span><span style="opacity:.6;font-size:11px;">(' + romList.length + ')</span></div><div class="roms"></div>';
+                const roms = wrap.querySelector('.roms');
+                romList.forEach(r => {
+                    const d = document.createElement('div');
+                    d.className = 'rom';
+                    d.textContent = r;
+                    d.addEventListener('click', () => vscode.postMessage({ type: 'openROM', game: g, rom: r.replace('.nes', '.7z') }));
+                    roms.appendChild(d);
+                });
+                const header = wrap.querySelector('.group-header');
+                header.addEventListener('click', () => { const c = wrap.classList.toggle('collapsed'); roms.style.display = c ? 'none' : 'flex'; });
+                results.appendChild(wrap);
+            });
+            pager.style.display = 'flex';
+            pageInfo.textContent = page + ' / ' + totalPages;
+            prevBtn.disabled = page <= 1;
+            nextBtn.disabled = page >= totalPages;
+        }
+
+        prevBtn.addEventListener('click', () => { if (currentPage > 1) vscode.postMessage({ type: 'page', type1: typeSel.value, page: currentPage - 1 }); });
+        nextBtn.addEventListener('click', () => { if (currentPage < totalPages) vscode.postMessage({ type: 'page', type1: typeSel.value, page: currentPage + 1 }); });
+    </script>
+</body>
+
+</html>

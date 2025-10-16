@@ -9,8 +9,11 @@ importers:
   .:
     dependencies:
       '@nesjs/native':
-        specifier: ^2.1.5
-        version: 2.1.5
+        specifier: ^2.2.0
+        version: 2.2.0
+      js7z-tools:
+        specifier: ^2.5.0
+        version: 2.5.0
       vue:
         specifier: ^3.5.21
         version: 3.5.21(typescript@5.9.2)
@@ -209,11 +212,11 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@nesjs/core@2.1.5':
-    resolution: {integrity: sha512-PENeIrMRRAmIBCzpLp8aI7gstMzyucJzEKYkh6uidTxpOgLaCNMLc01I8gzoCYX8sVFLyR0yLOkl7tC5zFM7BA==}
+  '@nesjs/core@2.2.0':
+    resolution: {integrity: sha512-6kBkJckmYQs/KQiBRWzBsFtHmO/1ulOTRSdgDfJCz+qB1EGqHhkIWUTLfXUa/45Hap7vH7FOmjltlYwRBsUQ5w==}
 
-  '@nesjs/native@2.1.5':
-    resolution: {integrity: sha512-gudoLaOCUDmBN6srRxzuXCAahUBHLkDfwNS1yCeIf8jNGhTuqp4+b0DfrrAv/gJZ49TFVkwcXB9nLB80bgedag==}
+  '@nesjs/native@2.2.0':
+    resolution: {integrity: sha512-IEAk2MhA8nu920RHJMlCLncyN6R7ttB4jEQ12B81+NAPvCqbQNvtIbwcaAJnMDeY/Awxa9cZJnwQMxGdqPvsQA==}
 
   '@rolldown/pluginutils@1.0.0-beta.29':
     resolution: {integrity: sha512-NIJgOsMjbxAXvoGq/X0gD7VPMQ8j9g0BiDaNjVNVjvl+iKXxL3Jre0v31RmBYeLEmkbj2s02v8vFTbUXi5XS2Q==}
@@ -437,6 +440,9 @@ packages:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
 
+  js7z-tools@2.5.0:
+    resolution: {integrity: sha512-iBECaQB6jo7t1mAuL9UE4FjGmDBzsCwQuKSMPIvq97xYKtCQUC9HjxZwf9pdHR0CJp7uhectmtH1WvtarbIMxg==}
+
   magic-string@0.30.19:
     resolution: {integrity: sha512-2N21sPY9Ws53PZvsEpVtNuSW+ScYbQdp4b9qUaL+9QkHUrGFKo56Lg9Emg5s9V/qrtNBmiR01sYhUOwu3H+VOw==}
 
@@ -632,11 +638,11 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@nesjs/core@2.1.5': {}
+  '@nesjs/core@2.2.0': {}
 
-  '@nesjs/native@2.1.5':
+  '@nesjs/native@2.2.0':
     dependencies:
-      '@nesjs/core': 2.1.5
+      '@nesjs/core': 2.2.0
 
   '@rolldown/pluginutils@1.0.0-beta.29': {}
 
@@ -850,6 +856,8 @@ snapshots:
     optional: true
 
   he@1.2.0: {}
+
+  js7z-tools@2.5.0: {}
 
   magic-string@0.30.19:
     dependencies:

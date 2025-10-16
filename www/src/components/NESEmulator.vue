@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { NESEmulator } from '@nesjs/native'
 import { type Ref, onMounted, reactive, ref, useTemplateRef } from 'vue'
+import { extract7z } from '../7z'
 
 const vscode = acquireVsCodeApi()
 
@@ -541,6 +542,45 @@ onMounted(async() => {
                     stopGame()
                 }
                 break
+
+            case 'openROM':
+                fetch(`https://taiyuuki.github.io/nes-roms/roms/${e.data.rom}`).then(response => {
+                   
+                    response.arrayBuffer().then(async buffer => {
+                        try {
+                            const zipFiles = await extract7z(new Uint8Array(buffer))
+                            for (const filename in zipFiles) {
+                                if (filename.endsWith('.nes')) {
+                                    await emu.loadROM(zipFiles[filename]!)
+                                    
+                                    isPlaying.value = true
+                                    isPaused.value = false
+                                    currentGame.value = filename.replace('.nes', '')
+
+                                    // 加载游戏相关数据
+                                    await loadGameData(currentGame.value)
+                                    await loadCheats()
+
+                                    // 应用设置
+                                    applySettings()
+                                    await emu.start()
+
+                                    return
+                                }
+                            }
+                        }
+                        catch(error) {
+                            console.error('解压7z失败:', error)
+                            notify('error', '解压7z失败')
+                        }
+                    })
+                        .catch(e => {
+                            console.error(e)
+                        })
+                })
+                    .catch(e => {
+                        console.error(e)
+                    })
         }
     })
 

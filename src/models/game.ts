@@ -63,13 +63,19 @@ export class GameDao {
             .all<Game>()
     }
 
-    searchByNamePaged(name: string, page: number, pageSize: number) {
+    searchByNamePaged(name: string, type1: string, page: number, pageSize: number) {
         const kw = name.toLowerCase()
+        const type = type1.toLowerCase()
         const pattern = `%${kw}%`
         const qb = this.qb.reset()
-            .whereRaw('LOWER(name_cn) LIKE ?', [pattern])
-            .orWhereRaw('LOWER(name_en) LIKE ?', [pattern])
-            .orWhereRaw('LOWER(name_jp) LIKE ?', [pattern])
+        if (type1 !== 'all') {
+            qb.whereRaw('LOWER(type1_en) = ?', [type])
+        }
+        if (kw) {
+            qb.whereRaw('LOWER(name_cn) LIKE ?', [pattern])
+                .orWhereRaw('LOWER(name_en) LIKE ?', [pattern])
+                .orWhereRaw('LOWER(name_jp) LIKE ?', [pattern])
+        }
         const total = qb.count()
         if (!total) return { list: [] as Game[], total: 0, totalPages: 0, page: 0, pageSize }
         const totalPages = Math.ceil(total / pageSize)

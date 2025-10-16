@@ -39,6 +39,7 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
 
         view.webview.onDidReceiveMessage(msg => {
             if (msg.type === 'search') {
+                const type1: string = (msg.type1 || 'all').trim().toLowerCase()
                 const kw: string = (msg.keyword || '').trim()
                 this.lastKeyword = kw
 
@@ -48,41 +49,43 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
                     const allowed = [5, 10, 20, 50]
                     this.pageSize = allowed.includes(ps) ? ps : Math.min(100, Math.max(1, ps))
                 }
-                const pageData = this.searchPaged(kw, 1)
+                const pageData = this.searchPaged(kw, type1, 1)
                 view.webview.postMessage({ type: 'results', keyword: kw, ...pageData })
             }
             else if (msg.type === 'page') {
+                const type1: string = (msg.type1 || 'all').trim().toLowerCase()
                 const reqPage = msg.page || 1
-                const pageData = this.searchPaged(this.lastKeyword, reqPage)
+                const pageData = this.searchPaged(this.lastKeyword, type1, reqPage)
                 view.webview.postMessage({ type: 'results', keyword: this.lastKeyword, ...pageData })
             }
-            else if (msg.type === 'openRom') {
-                vscode.window.showInformationMessage(`打开假 ROM: ${msg.rom} (组: ${msg.group})`)
+            else if (msg.type === 'openROM') {
+                if (panel) {
+                    panel.webview.postMessage({ type: 'openROM', game: msg.game, rom: msg.rom })
+                }
             }
         })
     }
 
-    private searchPaged(kw: string, page: number) {
-        if (!kw) return { results: [], page: 0, pageSize: this.pageSize, total: 0, totalPages: 0 }
+    private searchPaged(kw: string, type1: string, page: number) {
 
-        const { list, total, totalPages, page: realPage, pageSize } = this.gameDao.searchByNamePaged(kw, page, this.pageSize)
+        const { list, total, totalPages, page: realPage, pageSize } = this.gameDao.searchByNamePaged(kw, type1, page, this.pageSize)
 
-        const results = list.map(g => {
-            const names = g.name_cn.split('；')
-            let name = names[0]
-            if (kw && !name.includes(kw)) {
-                const subname = names.find(n => n.includes(kw))
-                if (subname) name += ` (${subname})`
-            }
+        // const results = list.map(g => {
+        //     const names = g.name_cn.split('；')
+        //     let name = names[0]
+        //     if (kw && !name.includes(kw)) {
+        //         const subname = names.find(n => n.includes(kw))
+        //         if (subname) name += ` (${subname})`
+        //     }
 
-            return { name, roms: JSON.parse(g.roms) as string[] }
-        })
+        //     return { name, roms: JSON.parse(g.roms) as string[] }
+        // })
 
-        return { results, page: realPage, pageSize, total, totalPages }
+        return { results: list, page: realPage, pageSize, total, totalPages }
     }
 
     private loadHtml() {
-        const p = join(this.extensionPath, 'res', 'webview', 'search.html')
+        const p = join(this.extensionPath, 'res', 'search.html')
         try {
             return readFileSync(p, 'utf8').replace(/__NONCE__/g, getNonce())
         }
