@@ -3,7 +3,7 @@ import os from 'node:os'
 import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
 import * as vscode from 'vscode'
 import { LOCAL_FOLDER, ensureExists, getHtml, isUrl, localRoms, removeRom, saveLocalRoms } from './utils'
-import { LocalRomTree, RemoteRomTree } from './romTree'
+import { LocalRomTree } from './romTree'
 import { getGameDao, initDb } from './sqlite3/db'
 
 let panel!: vscode.WebviewPanel
@@ -107,10 +107,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     initDb(context.extensionPath)
 
-    const remoteROMTree = new RemoteRomTree()
     const localROMTree = new LocalRomTree()
     context.subscriptions.push(
-        vscode.window.registerTreeDataProvider('vscodeNes.remoteROM', remoteROMTree),
         vscode.window.registerTreeDataProvider('vscodeNes.localROM', localROMTree),
         vscode.window.registerWebviewViewProvider('vscodeNes.searchROM', new SearchWebviewProvider(context.extensionPath)),
     )
@@ -163,7 +161,6 @@ export function activate(context: vscode.ExtensionContext) {
                     writeFileSync(filePath, Buffer.from(rom))
                     saveLocalRoms(localRoms)
                     localROMTree.emitDataChange.call(localROMTree)
-                    remoteROMTree.emitDataChange.call(remoteROMTree)
                 }
             })
         }
@@ -199,16 +196,11 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }))
 
-    context.subscriptions.push(
-        vscode.commands.registerCommand('vscodeNes.remove', item => {
-            removeRom(item.label)
-            localROMTree.emitDataChange.call(localROMTree)
-            remoteROMTree.emitDataChange.call(remoteROMTree)
-            if (panel) panel.webview.postMessage({ type: 'delete', lable: item.label })
-        }),
-        vscode.commands.registerCommand('vscodeNes.like', item => { remoteROMTree.addLike(item.label, item.tooltip) }),
-        vscode.commands.registerCommand('vscodeNes.dislike', item => { remoteROMTree.removeLike(item.label) }),
-    )
+    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.remove', item => {
+        removeRom(item.label)
+        localROMTree.emitDataChange.call(localROMTree)
+        if (panel) panel.webview.postMessage({ type: 'delete', lable: item.label })
+    }))
 }
 
 export function deactivate(context: vscode.ExtensionContext) {
