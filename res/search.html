@@ -117,8 +117,6 @@
             background: var(--vscode-list-hoverBackground);
         }
 
-        /* 去除关键字高亮样式（需求：不再高亮） */
-
         .meta {
             font-size: 11px;
             opacity: .7;
@@ -130,21 +128,20 @@
     <form id="f" style="flex-wrap:wrap;gap:6px;align-items:center;">
         <select id="type1" title="游戏类型"
             style="padding:2px 4px;background:var(--vscode-dropdown-background);color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);">
-            <option value="all">所有类型</option>
+            <option value="all">全部游戏</option>
             <option value="Action">动作</option>
             <option value="Adventure">冒险</option>
             <option value="RPG">RPG</option>
             <option value="S.RPG">S.RPG</option>
             <option value="A.RPG">A.RPG</option>
             <option value="Intelligence">智力</option>
-            <option value="Sports">体育</option>
+            <option value="Sport">体育</option>
             <option value="Shooting">射击</option>
             <option value="Fighting">格斗</option>
             <option value="Simulation">模拟</option>
             <option value="Entertainment">娱乐</option>
             <option value="Strategy">策略</option>
             <option value="Other">其他</option>
-            <option value="Compilation">合卡</option>
         </select>
         <input id="kw" type="text" placeholder="输入关键字后回车" />
         <button type="submit">搜索</button>
@@ -155,7 +152,7 @@
             <div class="empty">暂无结果</div>
         </div>
         <div id="pager"
-            style="display:none;align-items:center;gap:8px;font-size:12px;flex-wrap:wrap;padding:4px 2px;margin-bottom:4px;">
+            style="display:none;align-items:center;justify-content:center;gap:8px;font-size:12px;flex-wrap:wrap;padding:4px 2px;margin-bottom:4px;">
             <button id="prevBtn" type="button">上一页</button>
             <span id="pageInfo"></span>
             <label style="display:flex;align-items:center;gap:4px;">
@@ -186,19 +183,25 @@
         let currentPage = 0;
         let totalPages = 0;
         let lastKeyword = '';
-        form.addEventListener('submit', e => {
-            e.preventDefault();
+
+        function search() {
             const k = input.value.trim();
             const ps = Number(pageSizeSel.value) || 10;
             vscode.postMessage({ type: 'search', keyword: k, type1: typeSel.value, pageSize: ps });
             meta.textContent = k ? '搜索中...' : '未搜索';
+        }
+
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            search();
+        });
+
+        typeSel.addEventListener('change', () => {
+            search();
         });
 
         pageSizeSel.addEventListener('change', () => {
-            const k = input.value.trim();
-            const ps = Number(pageSizeSel.value) || 10;
-            vscode.postMessage({ type: 'search', keyword: k, type1: typeSel.value, pageSize: ps });
-            meta.textContent = k ? '搜索中...' : '未搜索';
+            search();
         });
 
         window.addEventListener('message', e => {
@@ -254,6 +257,10 @@
 
         prevBtn.addEventListener('click', () => { if (currentPage > 1) vscode.postMessage({ type: 'page', type1: typeSel.value, page: currentPage - 1 }); });
         nextBtn.addEventListener('click', () => { if (currentPage < totalPages) vscode.postMessage({ type: 'page', type1: typeSel.value, page: currentPage + 1 }); });
+
+        window.addEventListener('load', () => {
+            vscode.postMessage({ type: 'search', keyword: lastKeyword, type1: typeSel.value, pageSize: Number(pageSizeSel.value) || 10 });
+        });
     </script>
 </body>
 

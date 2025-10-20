@@ -1,0 +1,236 @@
+/**
+ * VS Code CSS 变量映射和自定义变量
+ * 用于在 NES 模拟器组件中保持与 VS Code 主题一致的样式
+ */
+
+:root {
+  /* ============================================
+     间距系统 (Spacing Scale)
+     ============================================ */
+  --spacing-xs: 4px;
+  --spacing-small: 8px;
+  --spacing-medium: 12px;
+  --spacing-large: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+  --spacing-xxxl: 32px;
+
+  /* ============================================
+     圆角系统 (Border Radius)
+     ============================================ */
+  --border-radius-small: 4px;
+  --border-radius: 6px;
+  --border-radius-medium: 8px;
+  --border-radius-large: 12px;
+
+  /* ============================================
+     阴影系统 (Box Shadows)
+     ============================================ */
+  --shadow-small: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-large: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 12px 48px rgba(0, 0, 0, 0.3);
+
+  /* ============================================
+     过渡动画 (Transitions)
+     ============================================ */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* ============================================
+     Z-Index 层级
+     ============================================ */
+  --z-index-dropdown: 100;
+  --z-index-modal: 1000;
+  --z-index-tooltip: 2000;
+
+  /* ============================================
+     字体系统
+     ============================================ */
+  --font-size-xs: 11px;
+  --font-size-small: 12px;
+  --font-size-normal: 13px;
+  --font-size-medium: 14px;
+  --font-size-large: 16px;
+  --font-size-xl: 18px;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+
+/* ============================================
+   VS Code 颜色变量说明
+   ============================================
+   
+   这些变量由 VS Code 自动提供,会根据用户选择的主题自动变化
+   
+   背景色:
+   - var(--vscode-editor-background)          编辑器背景
+   - var(--vscode-sideBar-background)         侧边栏背景
+   - var(--vscode-activityBar-background)     活动栏背景
+   - var(--vscode-panel-background)           面板背景
+   
+   前景色:
+   - var(--vscode-editor-foreground)          编辑器文字
+   - var(--vscode-foreground)                 通用文字
+   - var(--vscode-descriptionForeground)      描述性文字
+   - var(--vscode-disabledForeground)         禁用状态文字
+   
+   按钮:
+   - var(--vscode-button-background)          主按钮背景
+   - var(--vscode-button-foreground)          主按钮文字
+   - var(--vscode-button-hoverBackground)     主按钮悬停
+   - var(--vscode-button-secondaryBackground) 次要按钮背景
+   - var(--vscode-button-secondaryForeground) 次要按钮文字
+   - var(--vscode-button-secondaryHoverBackground) 次要按钮悬停
+   - var(--vscode-button-border)              按钮边框
+   
+   输入框:
+   - var(--vscode-input-background)           输入框背景
+   - var(--vscode-input-foreground)           输入框文字
+   - var(--vscode-input-border)               输入框边框
+   - var(--vscode-input-placeholderForeground) 占位符文字
+   
+   边框和分隔:
+   - var(--vscode-panel-border)               面板边框
+   - var(--vscode-focusBorder)                焦点边框
+   - var(--vscode-contrastBorder)             对比边框
+   
+   列表:
+   - var(--vscode-list-hoverBackground)       列表悬停背景
+   - var(--vscode-list-activeSelectionBackground) 列表选中背景
+   - var(--vscode-list-inactiveSelectionBackground) 列表非活动选中背景
+   
+   徽章:
+   - var(--vscode-badge-background)           徽章背景
+   - var(--vscode-badge-foreground)           徽章文字
+   
+   状态颜色:
+   - var(--vscode-errorForeground)            错误文字
+   - var(--vscode-warningForeground)          警告文字
+   - var(--vscode-textLink-foreground)        链接文字
+   
+   代码块:
+   - var(--vscode-textCodeBlock-background)   代码块背景
+   - var(--vscode-textPreformat-foreground)   预格式化文字
+   
+   验证:
+   - var(--vscode-inputValidation-errorBackground)    错误输入背景
+   - var(--vscode-inputValidation-errorForeground)    错误输入文字
+   - var(--vscode-inputValidation-errorBorder)        错误输入边框
+   - var(--vscode-inputValidation-warningBackground)  警告输入背景
+   - var(--vscode-inputValidation-infoBackground)     信息输入背景
+   - var(--vscode-inputValidation-infoBorder)         信息输入边框
+   - var(--vscode-inputValidation-infoForeground)     信息输入文字
+   
+   滚动条:
+   - var(--vscode-scrollbarSlider-background)         滚动条背景
+   - var(--vscode-scrollbarSlider-hoverBackground)    滚动条悬停
+   - var(--vscode-scrollbarSlider-activeBackground)   滚动条激活
+   
+   工具栏:
+   - var(--vscode-toolbar-hoverBackground)    工具栏悬停
+   
+   测试:
+   - var(--vscode-testing-iconPassed)         测试通过图标
+   - var(--vscode-testing-iconFailed)         测试失败图标
+   
+   其他:
+   - var(--vscode-editor-font-family)         编辑器字体
+   - var(--vscode-editor-font-size)           编辑器字号
+*/
+
+/* ============================================
+   组件特定样式示例
+   ============================================ */
+
+/* 示例: 卡片组件 */
+.card {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-medium);
+  transition: all var(--transition-normal);
+}
+
+.card:hover {
+  border-color: var(--vscode-focusBorder);
+  box-shadow: var(--shadow-medium);
+}
+
+/* 示例: 主要按钮 */
+.btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: var(--border-radius-small);
+  padding: var(--spacing-small) var(--spacing-medium);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.btn-primary:hover {
+  background: var(--vscode-button-hoverBackground);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-small);
+}
+
+/* 示例: 次要按钮 */
+.btn-secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: var(--border-radius-small);
+  padding: var(--spacing-small) var(--spacing-medium);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.btn-secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* 示例: 输入框 */
+.input {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: var(--border-radius-small);
+  padding: var(--spacing-small) var(--spacing-medium);
+  font-size: var(--font-size-normal);
+  transition: border-color var(--transition-fast);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+.input::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+/* 示例: 自定义滚动条 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: var(--border-radius-small);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+  border-radius: var(--border-radius-small);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-activeBackground);
+}

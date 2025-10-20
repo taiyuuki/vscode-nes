@@ -512,7 +512,7 @@ onMounted(async() => {
           
                     isPlaying.value = true
                     isPaused.value = false
-                    currentGame.value = e.data.lable || 'Unknown Game'
+                    currentGame.value = e.data.label || 'Unknown Game'
           
                     // 加载游戏相关数据
                     await loadGameData(currentGame.value)
@@ -538,7 +538,7 @@ onMounted(async() => {
             case 'delete':
 
                 // 处理游戏删除
-                if (currentGame.value === e.data.lable) {
+                if (currentGame.value === e.data.label) {
                     stopGame()
                 }
                 break
@@ -590,7 +590,7 @@ onMounted(async() => {
     window.addEventListener('touchstart', onInteraction, { once: true })
     
     // 确保所有初始化完成后再通知VSCode
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // await new Promise(resolve => setTimeout(resolve, 100))
     vscode.postMessage({ type: 'ready' })
 })
 </script>
@@ -708,17 +708,18 @@ onMounted(async() => {
             <div class="save-actions">
               <button
                 v-if="getSaveBySlot(slotId)"
-                class="action-btn load-btn"
-                @click="loadGameState(getSaveBySlot(slotId)!)"
-              >
-                读档
-              </button>
-              <button
-                v-if="getSaveBySlot(slotId)"
                 class="action-btn delete-btn"
                 @click="deleteSave(getSaveBySlot(slotId)!)"
               >
                 删除
+              </button>
+              
+              <button
+                v-if="getSaveBySlot(slotId)"
+                class="action-btn load-btn"
+                @click="loadGameState(getSaveBySlot(slotId)!)"
+              >
+                读档
               </button>
               <button
                 class="action-btn save-btn"

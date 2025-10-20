@@ -2,40 +2,82 @@ import { basename, join } from 'node:path'
 import os from 'node:os'
 import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
 import * as vscode from 'vscode'
-import { LOCAL_FOLDER, ensureExists, getHtml, isUrl, localRoms, removeRom, saveLocalRoms } from './utils'
+import { LOCAL_FOLDER, ensureExists, getHtml, localRoms, removeRom, saveLocalRoms } from './utils'
 import { LocalRomTree } from './romTree'
 import { getGameDao, initDb } from './sqlite3/db'
 
-let panel!: vscode.WebviewPanel
+class PanelManager {
+    panel: vscode.WebviewPanel | null = null
+    messageHandlers: Map<string, ((data: any)=> void)[]> = new Map()
 
-function setPanel(context: vscode.ExtensionContext) {
-    panel = vscode.window.createWebviewPanel('vscode-nes', '红白机模拟器', vscode.ViewColumn.One, {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [
-            vscode.Uri.file(join(os.homedir(), LOCAL_FOLDER)),
-            vscode.Uri.file(join(context.extensionPath, 'res')),
-        ],
-    })
-    panel.webview.html = getHtml(context.extensionPath, panel)
-    panel.iconPath = vscode.Uri.file(join(context.extensionPath, 'res/famicom.svg'))
-    context.subscriptions.push(panel)
+    constructor(private context: vscode.ExtensionContext) {}
+
+    setPanel() {
+        this.panel = vscode.window.createWebviewPanel('vscode-nes', '红白机模拟器', vscode.ViewColumn.One, {
+            enableScripts: true,
+            retainContextWhenHidden: true,
+            localResourceRoots: [
+                vscode.Uri.file(join(os.homedir(), LOCAL_FOLDER)),
+                vscode.Uri.file(join(this.context.extensionPath, 'res')),
+            ],
+        })
+
+        this.panel.webview.html = getHtml(this.context.extensionPath, this.panel)
+        this.panel.iconPath = vscode.Uri.file(join(this.context.extensionPath, 'res/famicom.svg'))
+    
+        this.panel.webview.onDidReceiveMessage(e => {
+            const handlers = this.messageHandlers.get(e.type)
+            if (handlers) {
+                handlers.forEach(handler => handler(e))
+            }
+        })
+        this.panel.onDidDispose(() => this.panel = null)
+        this.context.subscriptions.push(this.panel)
+    }
+
+    postMessage(message: any) {
+        if (this.panel) {
+            this.panel.webview.postMessage(message)
+        }
+    }
+
+    registerMessageHandler(type: string, handler: (data: any)=> void) {
+        const handlers = this.messageHandlers.get(type) || []
+        handlers.push(handler)
+        this.messageHandlers.set(type, handlers)
+    }
+
+    onDidDispose(callback: ()=> void) {
+        if (this.panel) {
+            this.panel.onDidDispose(callback)
+        }
+    }
 }
+
+let panelManager!: PanelManager
 
 class SearchWebviewProvider implements vscode.WebviewViewProvider {
     gameDao = getGameDao()
     private lastKeyword = ''
     private pageSize = 10
 
-    constructor(private readonly extensionPath: string) {}
+    constructor(private readonly extensionCtxt: vscode.ExtensionContext) {}
 
     resolveWebviewView(view: vscode.WebviewView) {
         view.webview.options = {
             enableScripts: true,
-            localResourceRoots: [vscode.Uri.file(join(this.extensionPath, 'res'))],
+            localResourceRoots: [vscode.Uri.file(join(this.extensionCtxt.extensionPath, 'res'))],
         }
 
         view.webview.html = this.loadHtml()
+        let payload: { game: string | null, rom: string | null } | null = null
+
+        panelManager.registerMessageHandler('ready', () => {
+            if (payload) {
+                panelManager.postMessage({ type: 'openROM', ...payload })
+                payload = null
+            }
+        })
 
         view.webview.onDidReceiveMessage(msg => {
             if (msg.type === 'search') {
@@ -59,8 +101,13 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
                 view.webview.postMessage({ type: 'results', keyword: this.lastKeyword, ...pageData })
             }
             else if (msg.type === 'openROM') {
-                if (panel) {
-                    panel.webview.postMessage({ type: 'openROM', game: msg.game, rom: msg.rom })
+                if (panelManager.panel) {
+
+                    panelManager.postMessage({ type: 'openROM', game: msg.game, rom: msg.rom })
+                }
+                else {
+                    panelManager.setPanel()
+                    payload = { game: msg.game, rom: msg.rom }
                 }
             }
         })
@@ -70,22 +117,11 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
 
         const { list, total, totalPages, page: realPage, pageSize } = this.gameDao.searchByNamePaged(kw, type1, page, this.pageSize)
 
-        // const results = list.map(g => {
-        //     const names = g.name_cn.split('；')
-        //     let name = names[0]
-        //     if (kw && !name.includes(kw)) {
-        //         const subname = names.find(n => n.includes(kw))
-        //         if (subname) name += ` (${subname})`
-        //     }
-
-        //     return { name, roms: JSON.parse(g.roms) as string[] }
-        // })
-
         return { results: list, page: realPage, pageSize, total, totalPages }
     }
 
     private loadHtml() {
-        const p = join(this.extensionPath, 'res', 'search.html')
+        const p = join(this.extensionCtxt.extensionPath, 'res', 'search.html')
         try {
             return readFileSync(p, 'utf8').replace(/__NONCE__/g, getNonce())
         }
@@ -93,8 +129,6 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
             return `<html><body>缺少 search.html: ${(e as Error).message}</body></html>`
         }
     }
-
-    // 内存分页逻辑已移除，改为数据库分页
 }
 
 function getNonce() {
@@ -106,70 +140,78 @@ function getNonce() {
 export function activate(context: vscode.ExtensionContext) {
 
     initDb(context.extensionPath)
+    panelManager = new PanelManager(context)
 
     const localROMTree = new LocalRomTree()
     context.subscriptions.push(
         vscode.window.registerTreeDataProvider('vscodeNes.localROM', localROMTree),
-        vscode.window.registerWebviewViewProvider('vscodeNes.searchROM', new SearchWebviewProvider(context.extensionPath)),
+        vscode.window.registerWebviewViewProvider('vscodeNes.searchROM', new SearchWebviewProvider(context)),
     )
 
     let controller = vscode.workspace.getConfiguration('vscodeNes').get('controller')
     vscode.workspace.onDidChangeConfiguration(e => {
         if (e.affectsConfiguration('vscodeNes.controller')) {
             controller = vscode.workspace.getConfiguration('vscodeNes').get('controller')
-            if (panel) panel.webview.postMessage({ type: 'setController', controller })
+
+            panelManager.postMessage({ type: 'setController', controller })
         }
     })
 
-    let isDisposed = true
-    let pendingPlay: { lable: string; url: string; isLocal: boolean } | null = null
+    let payload: { label: string; url: string; isLocal: boolean } | null = null
+
+    panelManager.registerMessageHandler('error', data => {
+        vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
+    })
+    panelManager.registerMessageHandler('info', data => {
+        vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
+    })
+    panelManager.registerMessageHandler('ready', () => {
+        if (payload) {
+            panelManager.panel?.reveal()
+            let url = payload.url
+            if (payload.label in localRoms) {
+                url = localRoms[payload.label]
+            }
+            const finalUrl = panelManager.panel!.webview.asWebviewUri(vscode.Uri.file(url)).toString()
+  
+            panelManager.postMessage({ type: 'play', label: payload.label, url: finalUrl, isLocal: payload.isLocal })
+            payload = null
+        }
+    })
+    panelManager.registerMessageHandler('download', data => {
+        const userPath = join(os.homedir(), LOCAL_FOLDER)
+        const savePath = join(userPath, 'roms')
+        ensureExists(userPath)
+        ensureExists(savePath)
+        const filePath = join(savePath, data.filename)
+        localRoms[data.filename] = filePath
+
+        // const rom: number[] = []
+        // for (let i = 0; i < data.content.length; i++) rom.push(data.content.charCodeAt(i))
+        writeFileSync(filePath, Buffer.from(data.content, 'binary'))
+        saveLocalRoms(localRoms)
+        localROMTree.emitDataChange.call(localROMTree)
+    })
 
     context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.sendMessage', (m: string) => {
         vscode.window.showInformationMessage(m)
     }))
 
-    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.play', (lable: string, url: string) => {
-        let isLocal = false
-        if (!isUrl(url)) isLocal = true
-        else if (lable in localRoms) { isLocal = true; url = localRoms[lable] }
-        if (isDisposed || !panel) {
-            isDisposed = false
-            pendingPlay = { lable, url, isLocal }
-            setPanel(context)
-            panel.webview.postMessage({ type: 'setController', controller })
-            panel.onDidDispose(() => { isDisposed = true; pendingPlay = null })
-            panel.webview.onDidReceiveMessage(data => {
-                if (data.type === 'error' || data.type === 'info') {
-                    vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
-                }
-                else if (data.type === 'ready' && pendingPlay) {
-                    let finalUrl = pendingPlay.url
-                    if (!isUrl(finalUrl)) finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(finalUrl)).toString()
-                    else if (pendingPlay.lable in localRoms) finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[pendingPlay.lable])).toString()
-                    panel.webview.postMessage({ type: 'play', lable: pendingPlay.lable, url: finalUrl, isLocal: pendingPlay.isLocal })
-                    pendingPlay = null
-                }
-                else if (data.type === 'download') {
-                    const userPath = join(os.homedir(), LOCAL_FOLDER)
-                    const savePath = join(userPath, 'roms')
-                    ensureExists(userPath)
-                    ensureExists(savePath)
-                    const filePath = join(savePath, data.fileName)
-                    localRoms[data.fileName] = filePath
-                    const rom: number[] = []
-                    for (let i = 0; i < data.content.length; i++) rom.push(data.content.charCodeAt(i))
-                    writeFileSync(filePath, Buffer.from(rom))
-                    saveLocalRoms(localRoms)
-                    localROMTree.emitDataChange.call(localROMTree)
-                }
-            })
+    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.play', (label: string, url: string) => {
+        if (panelManager.panel) {
+            panelManager.panel.reveal()
+            if (label in localRoms) {
+                url = localRoms[label]
+            }
+            const finalUrl = panelManager.panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
+            panelManager.postMessage({ type: 'play', label, url: finalUrl, isLocal: true })
         }
         else {
-            panel.reveal()
-            let finalUrl = url
-            if (!isUrl(url)) finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
-            else if (lable in localRoms) finalUrl = panel.webview.asWebviewUri(vscode.Uri.file(localRoms[lable])).toString()
-            panel.webview.postMessage({ type: 'play', lable, url: finalUrl, isLocal })
+            payload = { label, url, isLocal: true }
+            panelManager.setPanel()
+            panelManager.onDidDispose(() => {
+                payload = null
+            })
         }
     }))
 
@@ -199,7 +241,8 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.remove', item => {
         removeRom(item.label)
         localROMTree.emitDataChange.call(localROMTree)
-        if (panel) panel.webview.postMessage({ type: 'delete', lable: item.label })
+
+        panelManager.postMessage({ type: 'delete', label: item.label })
     }))
 }
 
