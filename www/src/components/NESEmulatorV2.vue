@@ -173,6 +173,11 @@ onMounted(async() => {
 
                 await future
 
+                isPlaying.value = true
+                isPaused.value = false
+                isLocalROM.value = e.data.isLocal ?? false
+                currentGame.value = e.data.label || 'Unknown Game'
+
                 future = emu.start()
                 future.catch(err => {
                     console.error('模拟器启动失败:', err)
@@ -180,11 +185,6 @@ onMounted(async() => {
                 })
 
                 await future
-
-                isPlaying.value = true
-                isPaused.value = false
-                isLocalROM.value = e.data.isLocal ?? false
-                currentGame.value = e.data.label || 'Unknown Game'
                     
                 future = loadGameData(currentGame.value, db.value!)
                 future.catch(err => {
@@ -274,19 +274,19 @@ onMounted(async() => {
 
                         await future
                         
+                        isPlaying.value = true
+                        isPaused.value = false
+                        isLocalROM.value = e.data.local ?? false
+                        currentGame.value = filename.replace('.nes', '')
+                        
                         future = emu.start()
                         future.catch(err => {
                             console.error('模拟器启动失败', err)
                             notify('error', '模拟器启动失败')
                             isLoading.value = false
                         })
-
+                        
                         await future
-
-                        isPlaying.value = true
-                        isPaused.value = false
-                        isLocalROM.value = e.data.local ?? false
-                        currentGame.value = filename.replace('.nes', '')
 
                         future = loadGameData(currentGame.value, db.value!)
                         future.catch(err => {
