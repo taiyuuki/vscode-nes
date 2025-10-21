@@ -1,0 +1,36 @@
+# Ignore common unnecessary files and large folders for VS Code extension package
+
+# node modules and dependencies (we use --no-dependencies when packaging)
+node_modules/
+
+# Development sources — we ship built output in dist
+src/
+*.ts
+tsconfig*.json
+
+# Build outputs for web app (large) — we don't need the whole www bundle in the extension
+www/
+
+# Editor and CI metadata
+.vscode/
+.github/
+.git/
+
+# Local and lock files not needed in the extension
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Logs, temp and archives
+*.log
+*.vsix
+*.tmp
+
+# keep dist and res (assets + built extension)
+!dist/**
+!res/**
+
+# Keep package.json and README so marketplace shows description
+!package.json
+!README.md
+!LICENSE.md
