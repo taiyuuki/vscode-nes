@@ -157,12 +157,12 @@ onMounted(async() => {
         switch(e.data.type) {
             case 'play':
             {
-                isLoading.value = true
                 let future: Promise<any>
                 future = fetch(e.data.url)
                 future.catch(err => {
                     console.error('加载ROM失败:', err)
                     notify('error', '文件加载失败，文件可能已不存在。')
+                    isLoading.value = false
                 })
                 const data: Response = await future
 
@@ -185,6 +185,7 @@ onMounted(async() => {
                 future.catch(err => {
                     console.error('模拟器启动失败:', err)
                     notify('error', '模拟器启动失败。')
+                    isLoading.value = false
                 })
 
                 await future
