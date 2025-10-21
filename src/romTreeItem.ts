@@ -15,14 +15,8 @@ export class RomTreeItem extends vscode.TreeItem {
         this.tooltip = url
         this.iconPath = icon
         
-        if (key === 'likes') {
-            this.contextValue = 'likes'
-        }
-        else if (key === 'local') {
+        if (key === 'local') {
             this.contextValue = 'localROM'
-        }
-        else {
-            this.contextValue = 'remoteROM'
         }
     }
 }

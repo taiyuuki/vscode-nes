@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import type { NESEmulator } from '@nesjs/native'
+import { useEmulatorSettings } from './useEmulatorSettings'
 
 interface SaveState {
     id: string
@@ -19,6 +20,8 @@ export function useGameState(vscode: any) {
     const isPaused = ref(false)
     const currentGame = ref<string>('')
     const gameData = ref<Record<string, GameData>>({})
+    const isLocalROM = ref(false)
+    const emulatorSettings = useEmulatorSettings()
 
     async function loadGameData(gameName: string, db: IDBDatabase) {
         try {
@@ -131,7 +134,7 @@ export function useGameState(vscode: any) {
     }
 
     function notify(type: 'error' | 'info', message: string) {
-        vscode.postMessage({ type, message })
+        if (emulatorSettings.settings.notifications) vscode.postMessage({ type, message })
     }
 
     return {
@@ -143,5 +146,7 @@ export function useGameState(vscode: any) {
         saveState,
         loadState,
         deleteSave,
+        isLocalROM,
+        notify,
     }
 }

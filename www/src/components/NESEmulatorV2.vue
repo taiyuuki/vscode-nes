@@ -27,6 +27,8 @@ const {
     saveState,
     loadState,
     deleteSave,
+    isLocalROM,
+    notify,
 } = useGameState(vscode)
 
 const {
@@ -47,6 +49,7 @@ const {
 } = useCheats(vscode)
 
 const showSaveMenu = ref(false)
+const isLoading = ref(false)
 
 // 游戏控制
 function togglePlayPause() {
@@ -128,6 +131,8 @@ async function onInteraction() {
     window.removeEventListener('touchstart', onInteraction)
 }
 
+const downloader = { executor: () => {} }
+
 onMounted(async() => {
 
     // 初始化数据库
@@ -153,9 +158,18 @@ onMounted(async() => {
                     const data = await fetch(e.data.url)
                     const buffer = await data.arrayBuffer()
                     await emu.loadROM(new Uint8Array(buffer))
-                    
+
+                    downloader.executor = () => {
+                        vscode.postMessage({
+                            type: 'download',
+                            filename: e.data.label || 'Unknown Game',
+                            content: buffer,
+                        })
+                    }
+
                     isPlaying.value = true
                     isPaused.value = false
+                    isLocalROM.value = e.data.isLocal ?? false
                     currentGame.value = e.data.label || 'Unknown Game'
                     
                     await loadGameData(currentGame.value, db.value!)
@@ -166,7 +180,7 @@ onMounted(async() => {
                 }
                 catch(error) {
                     console.error('加载游戏失败:', error)
-                    vscode.postMessage({ type: 'error', message: '加载游戏失败' })
+                    notify('error', '加载游戏失败')
                 }
                 break
             
@@ -177,44 +191,53 @@ onMounted(async() => {
             
             case 'delete':
                 if (currentGame.value === e.data.label) {
-                    stopGame()
+
+                    // stopGame()
+                    isLocalROM.value = false
                 }
                 break
 
             case 'openROM':
+                isLoading.value = true
+                stopGame()
                 fetch(`https://taiyuuki.github.io/nes-roms/roms/${e.data.rom}`).then(response => {
                     response.arrayBuffer().then(async buffer => {
+                        
+                        const extractPromise = extract7z(new Uint8Array(buffer))
+                        extractPromise.catch(() => {
+                            console.error('解压7z失败')
+                            notify('error', '解压失败')
+                        })
+                        const zipFiles = await extractPromise
+                        isLoading.value = false
+                            
                         try {
-                            const zipFiles = await extract7z(new Uint8Array(buffer))
                             for (const filename in zipFiles) {
                                 if (filename.endsWith('.nes')) {
                                     const data = zipFiles[filename]!
-
+                                    downloader.executor = () => {
+                                        vscode.postMessage({
+                                            type: 'download',
+                                            filename,
+                                            content: data,
+                                        })
+                                    }
                                     await emu.loadROM(data)
-                                    
                                     isPlaying.value = true
                                     isPaused.value = false
+                                    isLocalROM.value = e.data.local ?? false
                                     currentGame.value = filename.replace('.nes', '')
-
                                     await loadGameData(currentGame.value, db.value!)
                                     await loadCheats(emu, currentGame.value, db.value!)
-
                                     applySettings()
                                     await emu.start()
-
-                                    vscode.postMessage({
-                                        type: 'download',
-                                        filename,
-                                        content: data,
-                                    })
-
+    
                                     return
                                 }
                             }
                         }
-                        catch(error) {
-                            console.error('解压7z失败:', error)
-                            vscode.postMessage({ type: 'error', message: '解压7z失败' })
+                        finally {
+                            isLoading.value = false
                         }
                     })
                 })
@@ -232,6 +255,15 @@ onMounted(async() => {
 
 <template>
   <div class="nes-emulator-v2">
+    <div
+      v-if="isLoading"
+      class="loading-overlay"
+    >
+      <div class="loading-spinner" />
+      <div class="loading-text">
+        正在下载和解压ROM，请稍候...
+      </div>
+    </div>
     <!-- 游戏画面容器 -->
     <div class="game-viewport">
       <canvas
@@ -242,13 +274,14 @@ onMounted(async() => {
       <!-- 控制面板 -->
       <GameControls
         v-if="isPlaying"
+        v-model:is-local="isLocalROM"
         :is-paused="isPaused"
         @toggle-play-pause="togglePlayPause"
         @reset="resetGame"
         @open-saves="showSaveMenu = true"
         @open-settings="showSettings = true"
         @open-cheats="showCheatMenu = true"
-        @download="vscode.postMessage({ type: 'download', label: currentGame, data: gameData })"
+        @download="downloader.executor()"
       />
     </div>
 
@@ -268,8 +301,11 @@ onMounted(async() => {
       v-if="showSettings"
       v-model:settings="settings"
       @close="showSettings = false"
-      @apply="applySettings"
-      @save="() => saveSettings(db!)"
+      @update:settings="(val) => {
+        Object.assign(settings, val)
+        applySettings()
+        saveSettings(db!)
+      }"
     />
 
     <!-- 金手指弹窗 -->
@@ -290,10 +326,42 @@ onMounted(async() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  min-height: 90vh;
   padding: var(--spacing-large, 20px);
   background: var(--vscode-editor-background);
   color: var(--vscode-editor-foreground);
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 6px solid #ccc;
+    border-top: 6px solid #2196f3;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+.loading-text {
+    color: #fff;
+    font-size: 1.2em;
+    text-align: center;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .game-viewport {

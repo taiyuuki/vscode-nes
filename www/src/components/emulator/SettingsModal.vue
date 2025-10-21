@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { reactive, watch } from 'vue'
 import Modal from './Modal.vue'
 
 interface EmulatorSettings {
@@ -12,21 +13,21 @@ interface EmulatorSettings {
 
 interface Props { settings: EmulatorSettings }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
     'close': []
-    'apply': []
-    'save': []
     'update:settings': [settings: EmulatorSettings]
 }>()
 
-function handleChange() {
-    emit('apply')
-}
+const localSettings = reactive<EmulatorSettings>({ ...props.settings })
 
-function handleSave() {
-    emit('save')
+watch(() => props.settings, val => {
+    Object.assign(localSettings, val)
+}, { deep: true })
+
+function handleChange() {
+    emit('update:settings', { ...localSettings })
 }
 </script>
 
@@ -48,7 +49,7 @@ function handleSave() {
           >画面缩放</label>
           <select
             id="scale"
-            v-model.number="settings.scale"
+            v-model.number="localSettings.scale"
             class="setting-select"
             @change="handleChange"
           >
@@ -70,7 +71,7 @@ function handleSave() {
         <div class="setting-item checkbox-item">
           <label class="checkbox-label">
             <input
-              v-model="settings.smoothing"
+              v-model="localSettings.smoothing"
               type="checkbox"
               class="setting-checkbox"
               @change="handleChange"
@@ -82,7 +83,7 @@ function handleSave() {
         <div class="setting-item checkbox-item">
           <label class="checkbox-label">
             <input
-              v-model="settings.clip8px"
+              v-model="localSettings.clip8px"
               type="checkbox"
               class="setting-checkbox"
               @change="handleChange"
@@ -100,7 +101,7 @@ function handleSave() {
         <div class="setting-item checkbox-item">
           <label class="checkbox-label">
             <input
-              v-model="settings.muted"
+              v-model="localSettings.muted"
               type="checkbox"
               class="setting-checkbox"
               @change="handleChange"
@@ -110,14 +111,14 @@ function handleSave() {
         </div>
         
         <div
-          v-if="!settings.muted"
+          v-if="!localSettings.muted"
           class="setting-item"
         >
           <label class="setting-label">
-            音量: {{ Math.round(settings.volume * 100) }}%
+            音量: {{ Math.round(localSettings.volume * 100) }}%
           </label>
           <input
-            v-model.number="settings.volume"
+            v-model.number="localSettings.volume"
             type="range"
             min="0"
             max="1"
@@ -136,10 +137,10 @@ function handleSave() {
         <div class="setting-item checkbox-item">
           <label class="checkbox-label">
             <input
-              v-model="settings.notifications"
+              v-model="localSettings.notifications"
               type="checkbox"
               class="setting-checkbox"
-              @change="handleSave"
+              @change="handleChange"
             >
             <span>启用通知</span>
           </label>

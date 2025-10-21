@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import type { NESEmulator } from '@nesjs/native'
+import { useEmulatorSettings } from './useEmulatorSettings'
 
 interface CheatCode {
     code: string
@@ -10,6 +11,7 @@ interface CheatCode {
 export function useCheats(vscode: any) {
     const cheats = ref<CheatCode[]>([])
     const showCheatMenu = ref(false)
+    const emulatorSettings = useEmulatorSettings()
 
     async function loadCheats(emu: NESEmulator, gameName: string, db: IDBDatabase) {
         if (!gameName) return
@@ -162,7 +164,7 @@ export function useCheats(vscode: any) {
     }
 
     function notify(type: 'error' | 'info', message: string) {
-        vscode.postMessage({ type, message })
+        if (emulatorSettings.settings.notifications) vscode.postMessage({ type, message })
     }
 
     return {
@@ -172,5 +174,6 @@ export function useCheats(vscode: any) {
         addCheat,
         toggleCheat,
         removeCheat,
+        notify,
     }
 }

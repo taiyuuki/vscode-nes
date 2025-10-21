@@ -37,16 +37,6 @@
         "command": "vscodeNes.remove",
         "title": "删除",
         "icon": "$(trash)"
-      },
-      {
-        "command": "vscodeNes.like",
-        "title": "收藏",
-        "icon": "$(extensions-star-full)"
-      },
-      {
-        "command": "vscodeNes.dislike",
-        "title": "取消收藏",
-        "icon": "$(trash)"
       }
     ],
     "viewsContainers": {
@@ -85,32 +75,10 @@
           "when": "view == vscodeNes.localROM"
         },
         {
-          "command": "vscodeNes.like",
-          "when": "viewItem == remoteROM"
-        },
-        {
-          "command": "vscodeNes.dislike",
-          "when": "viewItem == likes"
-        },
-        {
           "command": "vscodeNes.remove",
-          "when": "view == localROM",
+          "when": "viewItem == localROM",
           "group": "inline",
           "title": "删除ROM",
-          "icon": "$(trash)"
-        },
-        {
-          "command": "vscodeNes.like",
-          "group": "inline",
-          "when": "viewItem == remoteROM",
-          "title": "收藏",
-          "icon": "$(extensions-star-full)"
-        },
-        {
-          "command": "vscodeNes.dislike",
-          "group": "inline",
-          "when": "viewItem == likes",
-          "title": "取消收藏",
           "icon": "$(trash)"
         }
       ]

@@ -143,8 +143,7 @@
             <option value="Strategy">策略</option>
             <option value="Other">其他</option>
         </select>
-        <input id="kw" type="text" placeholder="输入关键字后回车" />
-        <button type="submit">搜索</button>
+        <input id="kw" type="text" placeholder="搜索游戏" />
     </form>
     <div class="meta" id="meta">未搜索</div>
     <div class="list-area">
@@ -184,12 +183,35 @@
         let totalPages = 0;
         let lastKeyword = '';
 
-        function search() {
+        const debounce = (func, delay) => {
+            let timer;
+            return function (...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => func.apply(this, args), delay);
+            };
+        };
+
+        const search = debounce(function () {
             const k = input.value.trim();
             const ps = Number(pageSizeSel.value) || 10;
             vscode.postMessage({ type: 'search', keyword: k, type1: typeSel.value, pageSize: ps });
             meta.textContent = k ? '搜索中...' : '未搜索';
-        }
+        }, 300);
+
+        input.addEventListener('compositionstart', () => {
+            input._composing = true;
+        });
+
+        input.addEventListener('compositionend', () => {
+            input._composing = false;
+            search();
+        });
+
+        input.addEventListener('input', () => {
+            if (!input._composing) {
+                search();
+            }
+        });
 
         form.addEventListener('submit', e => {
             e.preventDefault();
@@ -253,13 +275,15 @@
             pageInfo.textContent = page + ' / ' + totalPages;
             prevBtn.disabled = page <= 1;
             nextBtn.disabled = page >= totalPages;
+            results.scrollTop = 0;
         }
 
         prevBtn.addEventListener('click', () => { if (currentPage > 1) vscode.postMessage({ type: 'page', type1: typeSel.value, page: currentPage - 1 }); });
         nextBtn.addEventListener('click', () => { if (currentPage < totalPages) vscode.postMessage({ type: 'page', type1: typeSel.value, page: currentPage + 1 }); });
 
         window.addEventListener('load', () => {
-            vscode.postMessage({ type: 'search', keyword: lastKeyword, type1: typeSel.value, pageSize: Number(pageSizeSel.value) || 10 });
+            // vscode.postMessage({ type: 'search', keyword: lastKeyword, type1: typeSel.value, pageSize: Number(pageSizeSel.value) || 10 });
+            search()
         });
     </script>
 </body>

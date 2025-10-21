@@ -61,8 +61,6 @@ export function useEmulatorSettings() {
         emu.setSmoothing(settings.smoothing)
         emu.setVolume(settings.muted ? 0 : settings.volume)
         emu.setClip8px(settings.clip8px ? settings.clip8px : false)
-
-        // saveSettings会由父组件调用
     }
 
     return {

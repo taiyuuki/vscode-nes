@@ -3,6 +3,8 @@ interface Props { isPaused: boolean }
 
 defineProps<Props>()
 
+const isLocalROM = defineModel<boolean>('isLocal', { required: true })
+
 const emit = defineEmits<{
     togglePlayPause: []
     reset: []
@@ -60,14 +62,18 @@ const emit = defineEmits<{
       <span class="label">金手指</span>
     </button>
 
-    <!-- <button
+    <button
       class="control-btn"
-      title="下载游戏"
-      @click="$emit('download')"
+      :disabled="isLocalROM"
+      :title="isLocalROM ? '已下载' : '下载游戏'"
+      @click="() => {
+        $emit('download')
+        isLocalROM = true
+      }"
     >
       <span class="icon">⬇</span>
-      <span class="label">下载</span>
-    </button> -->
+      <span class="label">{{ isLocalROM ? '本地ROM' : '保存ROM' }}</span>
+    </button>
   </div>
 </template>
 
@@ -115,6 +121,18 @@ const emit = defineEmits<{
 
 .control-btn.primary:hover {
   background: var(--vscode-button-hoverBackground);
+}
+
+.control-btn:disabled {
+  background: var(--vscode-button-disabledBackground);
+  color: var(--vscode-button-disabledForeground);
+  cursor: not-allowed;
+}
+
+.control-btn:disabled:hover {
+  background: var(--vscode-button-disabledBackground);
+  transform: none;
+  box-shadow: none;
 }
 
 .icon {

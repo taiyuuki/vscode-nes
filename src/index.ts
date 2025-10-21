@@ -70,7 +70,7 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         view.webview.html = this.loadHtml()
-        let payload: { game: string | null, rom: string | null } | null = null
+        let payload: { game: string | null, rom: string | null, local: boolean } | null = null
 
         panelManager.registerMessageHandler('ready', () => {
             if (payload) {
@@ -101,13 +101,20 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
                 view.webview.postMessage({ type: 'results', keyword: this.lastKeyword, ...pageData })
             }
             else if (msg.type === 'openROM') {
+                let romURL = msg.rom
+                const label = msg.rom.replace('.7z', '.nes')
+                const local = !!localRoms[label]
+                if (local) {
+                    romURL = panelManager.panel!.webview.asWebviewUri(vscode.Uri.file(localRoms[label])).toString()
+                }
+                
                 if (panelManager.panel) {
 
-                    panelManager.postMessage({ type: 'openROM', game: msg.game, rom: msg.rom })
+                    panelManager.postMessage({ type: 'openROM', game: msg.game, rom: romURL, local })
                 }
                 else {
                     panelManager.setPanel()
-                    payload = { game: msg.game, rom: msg.rom }
+                    payload = { game: msg.game, rom: romURL, local }
                 }
             }
         })
