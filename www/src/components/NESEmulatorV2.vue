@@ -133,6 +133,8 @@ async function onInteraction() {
 
 const downloader = { executor: () => {} }
 
+let abortController: AbortController | null = null
+
 onMounted(async() => {
 
     // 初始化数据库
@@ -155,6 +157,7 @@ onMounted(async() => {
         switch(e.data.type) {
             case 'play':
             {
+                isLoading.value = true
                 let future: Promise<any>
                 future = fetch(e.data.url)
                 future.catch(err => {
@@ -213,6 +216,8 @@ onMounted(async() => {
                         content: buffer,
                     })
                 }
+
+                isLoading.value = false
                 break
             }
             
@@ -234,12 +239,20 @@ onMounted(async() => {
                 stopGame()
                 let future: Promise<any>
 
-                future = fetch(`https://taiyuuki.github.io/nes-roms/roms/${e.data.rom}`)
+                if (abortController) {
+                    abortController.abort()
+                }
+
+                abortController = new AbortController()
+
+                future = fetch(`https://taiyuuki.github.io/nes-roms/roms/${e.data.rom}`, { signal: abortController.signal })
 
                 future.catch(err => {
                     console.error('下载ROM失败:', err)
                     notify('error', '下载ROM失败，网络不稳定或地址已失效。')
+                }).finally(() => {
                     isLoading.value = false
+                    abortController = null
                 })
                 const response: Response = await future
 
@@ -253,7 +266,6 @@ onMounted(async() => {
                 })
                 const zipFiles = await extractPromise
 
-                isLoading.value = false
                 for (const filename in zipFiles) {
                     if (filename.endsWith('.nes')) {
                         const data = zipFiles[filename]!
