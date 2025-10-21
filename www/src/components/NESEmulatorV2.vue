@@ -154,35 +154,67 @@ onMounted(async() => {
     window.addEventListener('message', async e => {
         switch(e.data.type) {
             case 'play':
-                try {
-                    const data = await fetch(e.data.url)
-                    const buffer = await data.arrayBuffer()
-                    await emu.loadROM(new Uint8Array(buffer))
+            {
+                let future: Promise<any>
+                future = fetch(e.data.url)
+                future.catch(err => {
+                    console.error('加载ROM失败:', err)
+                    notify('error', '文件加载失败，文件可能已不存在。')
+                })
+                const data: Response = await future
 
-                    downloader.executor = () => {
-                        vscode.postMessage({
-                            type: 'download',
-                            filename: e.data.label || 'Unknown Game',
-                            content: buffer,
-                        })
-                    }
+                const buffer = await data.arrayBuffer()
 
-                    isPlaying.value = true
-                    isPaused.value = false
-                    isLocalROM.value = e.data.isLocal ?? false
-                    currentGame.value = e.data.label || 'Unknown Game'
+                future = emu.loadROM(new Uint8Array(buffer))
+                future.catch(err => {
+                    console.error('模拟器不支持该ROM:', err)
+                    notify('error', '模拟器不支持该ROM。')
+                })
+
+                await future
+
+                future = emu.start()
+                future.catch(err => {
+                    console.error('模拟器启动失败:', err)
+                    notify('error', '模拟器启动失败。')
+                })
+
+                await future
+
+                isPlaying.value = true
+                isPaused.value = false
+                isLocalROM.value = e.data.isLocal ?? false
+                currentGame.value = e.data.label || 'Unknown Game'
                     
-                    await loadGameData(currentGame.value, db.value!)
-                    await loadCheats(emu, currentGame.value, db.value!)
-                    
-                    applySettings()
-                    await emu.start()
-                }
-                catch(error) {
-                    console.error('加载游戏失败:', error)
-                    notify('error', '加载游戏失败')
+                future = loadGameData(currentGame.value, db.value!)
+                future.catch(err => {
+                    console.error('加载游戏数据失败', err)
+                    notify('error', '加载游戏数据失败')
+                    isLoading.value = false
+                })
+
+                await future
+
+                future = loadCheats(emu, currentGame.value, db.value!)
+                future.catch(err => {
+                    console.error('加载金手指失败', err)
+                    notify('error', '加载金手指失败')
+                    isLoading.value = false
+                })
+
+                await future
+
+                applySettings()
+
+                downloader.executor = () => {
+                    vscode.postMessage({
+                        type: 'download',
+                        filename: e.data.label || 'Unknown Game',
+                        content: buffer,
+                    })
                 }
                 break
+            }
             
             case 'setController':
                 emu.setupKeyboadController(1, e.data.controller.p1)
@@ -200,47 +232,86 @@ onMounted(async() => {
             case 'openROM':
                 isLoading.value = true
                 stopGame()
-                fetch(`https://taiyuuki.github.io/nes-roms/roms/${e.data.rom}`).then(response => {
-                    response.arrayBuffer().then(async buffer => {
-                        
-                        const extractPromise = extract7z(new Uint8Array(buffer))
-                        extractPromise.catch(() => {
-                            console.error('解压7z失败')
-                            notify('error', '解压失败')
-                        })
-                        const zipFiles = await extractPromise
-                        isLoading.value = false
-                            
-                        try {
-                            for (const filename in zipFiles) {
-                                if (filename.endsWith('.nes')) {
-                                    const data = zipFiles[filename]!
-                                    downloader.executor = () => {
-                                        vscode.postMessage({
-                                            type: 'download',
-                                            filename,
-                                            content: data,
-                                        })
-                                    }
-                                    await emu.loadROM(data)
-                                    isPlaying.value = true
-                                    isPaused.value = false
-                                    isLocalROM.value = e.data.local ?? false
-                                    currentGame.value = filename.replace('.nes', '')
-                                    await loadGameData(currentGame.value, db.value!)
-                                    await loadCheats(emu, currentGame.value, db.value!)
-                                    applySettings()
-                                    await emu.start()
-    
-                                    return
-                                }
-                            }
-                        }
-                        finally {
-                            isLoading.value = false
-                        }
-                    })
+                let future: Promise<any>
+
+                future = fetch(`https://taiyuuki.github.io/nes-roms/roms/${e.data.rom}`)
+
+                future.catch(err => {
+                    console.error('下载ROM失败:', err)
+                    notify('error', '下载ROM失败，网络不稳定或地址已失效。')
+                    isLoading.value = false
                 })
+                const response: Response = await future
+
+                future = response.arrayBuffer()
+                const buffer = await future
+                const extractPromise = extract7z(new Uint8Array(buffer))
+                extractPromise.catch(() => {
+                    console.error('解压7z失败')
+                    notify('error', '解压7z失败，文件可能已损坏。')
+                    isLoading.value = false
+                })
+                const zipFiles = await extractPromise
+
+                isLoading.value = false
+                for (const filename in zipFiles) {
+                    if (filename.endsWith('.nes')) {
+                        const data = zipFiles[filename]!
+                        downloader.executor = () => {
+                            vscode.postMessage({
+                                type: 'download',
+                                filename,
+                                content: data,
+                            })
+                        }
+
+                        future = emu.loadROM(data)
+                        future.catch(() => {
+                            console.error('模拟器不支持该ROM')
+                            notify('error', '模拟器不支持该ROM')
+                            isLoading.value = false
+                        })
+
+                        await future
+                        
+                        future = emu.start()
+                        future.catch(err => {
+                            console.error('模拟器启动失败', err)
+                            notify('error', '模拟器启动失败')
+                            isLoading.value = false
+                        })
+
+                        await future
+
+                        isPlaying.value = true
+                        isPaused.value = false
+                        isLocalROM.value = e.data.local ?? false
+                        currentGame.value = filename.replace('.nes', '')
+
+                        future = loadGameData(currentGame.value, db.value!)
+                        future.catch(err => {
+                            console.error('加载游戏数据失败', err)
+                            notify('error', '加载游戏数据失败')
+                            isLoading.value = false
+                        })
+
+                        await future
+
+                        future = loadCheats(emu, currentGame.value, db.value!)
+                        future.catch(err => {
+                            console.error('加载金手指失败', err)
+                            notify('error', '加载金手指失败')
+                            isLoading.value = false
+                        })
+
+                        await future
+
+                        applySettings()
+    
+                        return
+                    }
+                }
+                isLoading.value = false
         }
     })
 

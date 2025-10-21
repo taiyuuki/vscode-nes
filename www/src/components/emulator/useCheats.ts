@@ -164,7 +164,7 @@ export function useCheats(vscode: any) {
     }
 
     function notify(type: 'error' | 'info', message: string) {
-        if (emulatorSettings.settings.notifications) vscode.postMessage({ type, message })
+        if (emulatorSettings.settings.notifications || type === 'error') vscode.postMessage({ type, message })
     }
 
     return {
