@@ -58,7 +58,6 @@ export default defineConfig({
             name: 'copy-files',
             esbuildOptions(_) {
                 copyFile('node_modules/node-sqlite3-wasm/dist/node-sqlite3-wasm.wasm', 'dist/node-sqlite3-wasm.wasm')
-                copyFile('res/nes.sqlite3', 'dist/res/nes.sqlite3')
             },
         },
     ],
