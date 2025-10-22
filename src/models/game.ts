@@ -21,10 +21,8 @@ export interface Game {
 export class GameDao {
     private tableName = 'game'
     private qb: QueryBuilder
-    private db: Database
 
     constructor(db: Database) {
-        this.db = db
         this.qb = new QueryBuilder(db, this.tableName)
     }
 
@@ -42,50 +40,37 @@ export class GameDao {
             .get<Game>()
     }
 
-    getByType1(type1_en: string): Game[] {
-        return this.qb
-            .reset()
-            .where('type1_en', '=', type1_en)
-            .order('name_cn', 'ASC')
-            .all<Game>()
-    }
-
-    searchByName(name: string): Game[] {
-        const kw = name.toLowerCase()
-        const pattern = `%${kw}%`
-        
-        return this.qb
-            .reset()
-            .whereRaw('LOWER(name_cn) LIKE ?', [pattern])
-            .orWhereRaw('LOWER(name_en) LIKE ?', [pattern])
-            .orWhereRaw('LOWER(name_jp) LIKE ?', [pattern])
-            .order('name_cn', 'ASC')
-            .all<Game>()
-    }
-
-    searchByNamePaged(name: string, type1: string, page: number, pageSize: number) {
-        const kw = name.toLowerCase()
-        const type = type1.toLowerCase()
-        const pattern = `%${kw}%`
+    search(options: {
+        name: string
+        type1: string
+        page: number
+        pageSize: number
+        orderBy?: string
+        orderDir?: 'ASC' | 'DESC'
+    }) {
+        const { name, type1, page, pageSize, orderBy = 'name_cn', orderDir = 'DESC' } = options
         const qb = this.qb.reset()
+        
         if (type1 !== 'all') {
-            qb.whereRaw('LOWER(type1_en) = ?', [type])
+            qb.whereRaw('LOWER(type1_en) = ?', [type1])
         }
-        if (kw) {
+
+        if (name.trim()) {
+            const pattern = `%${name.trim().toLowerCase()}%`
             qb.whereRaw('LOWER(name_cn) LIKE ?', [pattern])
                 .orWhereRaw('LOWER(name_en) LIKE ?', [pattern])
                 .orWhereRaw('LOWER(name_jp) LIKE ?', [pattern])
         }
+        qb.order(orderBy, orderDir)
         const total = qb.count()
-        if (!total) return { list: [] as Game[], total: 0, totalPages: 0, page: 0, pageSize }
+        if (!total) return { results: [] as Game[], total: 0, totalPages: 0, page: 0, pageSize }
         const totalPages = Math.ceil(total / pageSize)
         const safePage = Math.min(Math.max(1, page), totalPages)
         const offset = (safePage - 1) * pageSize
-        const list = qb
-            .order('name_cn', 'ASC')
+        const results = qb
             .setLimit(pageSize, offset)
             .all<Game>()
-
-        return { list, total, totalPages, page: safePage, pageSize }
+            
+        return { results, total, totalPages, page: safePage, pageSize }
     }
 }

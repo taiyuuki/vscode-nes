@@ -1,6 +1,6 @@
 import { basename, join } from 'node:path'
 import os from 'node:os'
-import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import * as vscode from 'vscode'
 import { LOCAL_FOLDER, ensureExists, getHtml, localRoms, removeRom, saveLocalRoms } from './utils'
 import { LocalRomTree } from './romTree'
@@ -58,8 +58,6 @@ let panelManager!: PanelManager
 
 class SearchWebviewProvider implements vscode.WebviewViewProvider {
     gameDao = getGameDao()
-    private lastKeyword = ''
-    private pageSize = 10
 
     constructor(private readonly extensionCtxt: vscode.ExtensionContext) {}
 
@@ -70,61 +68,79 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         view.webview.html = this.loadHtml()
-        let payload: { game: string | null, rom: string | null, local: boolean } | null = null
+        let payload: { game: string | null, rom: string | null } | null = null
 
         panelManager.registerMessageHandler('ready', () => {
-            if (payload) {
-                panelManager.postMessage({ type: 'openROM', ...payload })
+            if (payload?.rom) {
+
+                this.play(payload.rom, payload.game)
                 payload = null
             }
         })
 
         view.webview.onDidReceiveMessage(msg => {
             if (msg.type === 'search') {
-                const type1: string = (msg.type1 || 'all').trim().toLowerCase()
-                const kw: string = (msg.keyword || '').trim()
-                this.lastKeyword = kw
-
-                // 处理 pageSize（允许 5/10/20/50，自定义时夹到 1..100）
-                if (msg.pageSize) {
-                    const ps = Number(msg.pageSize) || 10
-                    const allowed = [5, 10, 20, 50]
-                    this.pageSize = allowed.includes(ps) ? ps : Math.min(100, Math.max(1, ps))
-                }
-                const pageData = this.searchPaged(kw, type1, 1)
-                view.webview.postMessage({ type: 'results', keyword: kw, ...pageData })
-            }
-            else if (msg.type === 'page') {
-                const type1: string = (msg.type1 || 'all').trim().toLowerCase()
-                const reqPage = msg.page || 1
-                const pageData = this.searchPaged(this.lastKeyword, type1, reqPage)
-                view.webview.postMessage({ type: 'results', keyword: this.lastKeyword, ...pageData })
+                const pageData = this.search({
+                    keyword: (msg.keyword || '').trim(),
+                    type1: (msg.type1 || 'all').trim().toLowerCase(),
+                    page: msg.page || 1,
+                    pageSize: msg.pageSize || 10,
+                    orderBy: msg.orderBy || 'name_cn',
+                    orderDir: msg.orderDir || 'ASC',
+                })
+                
+                view.webview.postMessage({ type: 'results', keyword: (msg.keyword || '').trim(), ...pageData })
             }
             else if (msg.type === 'openROM') {
-                let romURL = msg.rom
-                const label = msg.rom.replace('.7z', '.nes')
-                const local = !!localRoms[label]
-                if (local) {
-                    romURL = panelManager.panel!.webview.asWebviewUri(vscode.Uri.file(localRoms[label])).toString()
-                }
-                
+
                 if (panelManager.panel) {
 
-                    panelManager.postMessage({ type: 'openROM', game: msg.game, rom: romURL, local })
+                    this.play(msg.rom, msg.game)
                 }
                 else {
                     panelManager.setPanel()
-                    payload = { game: msg.game, rom: romURL, local }
+                    payload = { game: msg.game, rom: msg.rom }
                 }
             }
         })
     }
 
-    private searchPaged(kw: string, type1: string, page: number) {
+    private search(options: {
+        keyword: string
+        type1: string
+        page: number
+        pageSize: number
+        orderBy: string
+        orderDir: 'ASC' | 'DESC'
+    }) {
+        const keyword = options.keyword.trim()
+        const type1 = options.type1.trim().toLowerCase()
+        const page = options.page || 1
+        const pageSize = options.pageSize || 10
+        const orderBy = options.orderBy || 'name_cn'
+        const orderDir = options.orderDir || 'ASC'
 
-        const { list, total, totalPages, page: realPage, pageSize } = this.gameDao.searchByNamePaged(kw, type1, page, this.pageSize)
+        return this.gameDao.search({ name: keyword, type1, page, pageSize, orderBy, orderDir })
+    }
 
-        return { results: list, page: realPage, pageSize, total, totalPages }
+    private play(filename: string, game?: any) {
+        const filePath = localRoms[filename]
+        if (filePath && existsSync(filePath)) {
+            panelManager.postMessage({
+                type: 'play',
+                label: filename,
+                url: panelManager.panel!.webview.asWebviewUri(vscode.Uri.file(filePath)).toString(),
+                local: true,
+            })
+        }
+        else if (game) {
+            panelManager.postMessage({
+                type: 'openROM',
+                rom: filename.replace('.nes', '.7z'),
+                game,
+                local: false,
+            })
+        }
     }
 
     private loadHtml() {
@@ -179,9 +195,14 @@ export function activate(context: vscode.ExtensionContext) {
             if (payload.label in localRoms) {
                 url = localRoms[payload.label]
             }
-            const finalUrl = panelManager.panel!.webview.asWebviewUri(vscode.Uri.file(url)).toString()
+            if (existsSync(url)) {
+                const finalUrl = panelManager.panel!.webview.asWebviewUri(vscode.Uri.file(url)).toString()
+                panelManager.postMessage({ type: 'play', label: payload.label, url: finalUrl, local: payload.isLocal })
+            }
+            else {
+                vscode.commands.executeCommand('vscodeNes.sendMessage', '文件已不存在')
+            }
   
-            panelManager.postMessage({ type: 'play', label: payload.label, url: finalUrl, isLocal: payload.isLocal })
             payload = null
         }
     })
@@ -192,9 +213,6 @@ export function activate(context: vscode.ExtensionContext) {
         ensureExists(savePath)
         const filePath = join(savePath, data.filename)
         localRoms[data.filename] = filePath
-
-        // const rom: number[] = []
-        // for (let i = 0; i < data.content.length; i++) rom.push(data.content.charCodeAt(i))
         writeFileSync(filePath, Buffer.from(data.content, 'binary'))
         saveLocalRoms(localRoms)
         localROMTree.emitDataChange.call(localROMTree)
@@ -210,8 +228,14 @@ export function activate(context: vscode.ExtensionContext) {
             if (label in localRoms) {
                 url = localRoms[label]
             }
-            const finalUrl = panelManager.panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
-            panelManager.postMessage({ type: 'play', label, url: finalUrl, isLocal: true })
+
+            if (existsSync(url)) {
+                const finalUrl = panelManager.panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
+                panelManager.postMessage({ type: 'play', label: finalUrl, url: finalUrl, local: true })
+            }
+            else {
+                vscode.commands.executeCommand('vscodeNes.sendMessage', '文件已不存在')
+            }
         }
         else {
             payload = { label, url, isLocal: true }

@@ -1,30 +1,29 @@
-<center><img alt="红白机" width="128px" src="https://taiyuuki.gallerycdn.vsassets.io/extensions/taiyuuki/vscode-nes/0.0.6/1685968691107/Microsoft.VisualStudio.Services.Icons.Default"></center>
+<img alt="红白机" width="128px" src="https://taiyuuki.gallerycdn.vsassets.io/extensions/taiyuuki/vscode-nes/0.0.6/1685968691107/Microsoft.VisualStudio.Services.Icons.Default">
 
 # 红白机模拟器
 
 <a href="https://marketplace.visualstudio.com/items?itemName=taiyuuki.vscode-nes">
 <img alt="Marketplace Version" src="https://img.shields.io/visual-studio-marketplace/v/taiyuuki.vscode-nes?color=%0eb0c9&label=Marketplace&logo=visual%20studio%20code"></a>
 
-这是一款可以玩 FC(NES) 游戏的 VS Code 插件，提供了约400个游戏，绝大多数是中文，全部可以运行，但个别游戏会有贴图显式错误的问题。
+ <a href="https://github.com/taiyuuki/vscode-nes"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/taiyuuki/vscode-nes?style=social"></a>
 
-受 [小霸王](https://marketplace.visualstudio.com/items?itemName=gamedilong.anes) 的启发，但它已经很久没有维护，新版本VS Code无法使用，于是我写了这个能用、且功能更强大的版本。
 
-v1.0.0版本使用[nesjs](https://nesjs.netlify.app/)，大幅提升了对各种Mapper的支持，现在能支持绝大多数常见Mapper了。
+这是一款可以玩 FC(NES) 游戏的 VS Code 插件，超过3000个远程ROM，也可以添加本地ROM。
 
-最低支持VS Code版本：1.75.0
+v1.0.0版本使用[nesjs](https://nesjs.netlify.app/)模拟器，大幅提升对各类ROM的兼容性。
+
+VS Code版本要求： >= 1.75.0
 
 ## 功能
 
-- [x] 支持手柄
-- [x] 支持连发键
-- [x] 支持即时保存、读取
-- [x] 支持切换分辨率
-- [x] 支持暂停、静音
-- [x] 支持本地ROM
-- [x] 支持nsf音乐
+- [x] 支持即时保存、读取，每个游戏有四个存档位。
+- [x] 支持本地ROM，可以将远程ROM保存到本地。
+- [x] 支持播放nsf音乐
 - [x] 支持双人
 - [x] 支持自定义按键
 - [x] 支持金手指
+- [x] 支持手柄
+- [x] 支持连发键
 
 ## 默认按键
 
@@ -41,17 +40,11 @@ v1.0.0版本使用[nesjs](https://nesjs.netlify.app/)，大幅提升了对各种
 | 开始      | 1    |         |
 | 选择      | 2    |         |
 
-## 更新v1.0.0
-
-- 使用nesjs替换jsnes，大幅提升Mapper兼容性，现在能支持绝大多数常见Mapper了
-
 ## 使用
 
 安装插件后，点击侧边栏的手柄图标，然后选择游戏就可以玩了。
 
-由于安全策略的问题，每次选择游戏都需要手动点击屏幕中间的 `点我开始游戏` 才会运行。
-
-如果黑屏、没反应、不显示文字等，重新点击侧边栏中的游戏即可。
+如果黑屏、没反应、不显示文字等，重新选择一次游戏。
 
 ## 配置项
 
@@ -104,4 +97,4 @@ v1.0.0版本使用[nesjs](https://nesjs.netlify.app/)，大幅提升了对各种
 
 ## License
 
-MIT Copyright (c) 2023-2024 Taiyuuki
+MIT Copyright (c) 2023-2025 Taiyuuki

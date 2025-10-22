@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { NESEmulator } from '@nesjs/native'
-import { type Ref, onMounted, ref, useTemplateRef } from 'vue'
-import { extract7z } from '../7z'
+import { type Ref, computed, onMounted, ref, useTemplateRef } from 'vue'
+import { type ExtractedFilesMap, extract7z } from '../7z'
+import Dotting from './Dotting.vue'
 import GameControls from './emulator/GameControls.vue'
 import SaveStateModal from './emulator/SaveStateModal.vue'
 import SettingsModal from './emulator/SettingsModal.vue'
@@ -50,6 +51,26 @@ const {
 
 const showSaveMenu = ref(false)
 const isLoading = ref(false)
+const isDownloading = ref(false)
+const isExtracting = ref(false)
+const downloadingProgress = ref(0)
+
+// 环形进度相关
+const ringRadius = 52
+const ringCircumference = 2 * Math.PI * ringRadius
+const ringDashOffset = computed(() => {
+    const pct = Math.max(0, Math.min(100, downloadingProgress.value))
+
+    return (100 - pct) / 100 * ringCircumference
+})
+
+const loadingLabel = computed(() => {
+    if (isDownloading.value) return '下载中'
+    if (isExtracting.value) return '解压中'
+    if (isLoading.value) return '加载中'
+
+    return ''
+})
 
 // 游戏控制
 function togglePlayPause() {
@@ -68,14 +89,6 @@ function togglePlayPause() {
 function resetGame() {
     if (!emu) return
     emu.reset()
-}
-
-function stopGame() {
-    if (!emu) return
-    emu.stop()
-    isPlaying.value = false
-    isPaused.value = false
-    currentGame.value = ''
 }
 
 // 应用设置
@@ -135,6 +148,60 @@ const downloader = { executor: () => {} }
 
 let abortController: AbortController | null = null
 
+async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
+
+    downloader.executor = () => {
+        vscode.postMessage({
+            type: 'download',
+            filename: label || 'Unknown Game',
+            content: buffer,
+        })
+    }
+
+    let future: Promise<any>
+    future = emu.loadROM(buffer)
+    future.catch(err => {
+        console.error('模拟器不支持该ROM:', err)
+        notify('error', '模拟器不支持该ROM。')
+    })
+
+    await future
+
+    isPlaying.value = true
+    isPaused.value = false
+    isLocalROM.value = isLocal ?? false
+    currentGame.value = label || 'Unknown Game'
+                    
+    future = loadGameData(currentGame.value, db.value!)
+    future.catch(err => {
+        console.error('加载游戏数据失败', err)
+        notify('error', '加载游戏数据失败')
+        isLoading.value = false
+    })
+
+    await future
+
+    future = loadCheats(emu, currentGame.value, db.value!)
+    future.catch(err => {
+        console.error('加载金手指失败', err)
+        notify('error', '加载金手指失败')
+        isLoading.value = false
+    })
+
+    await future
+
+    applySettings()
+
+    isLoading.value = false
+
+    future = emu.start()
+    future.catch(err => {
+        console.error('模拟器启动发生错误:', err)
+    })
+
+    await future
+}
+
 onMounted(async() => {
 
     // 初始化数据库
@@ -168,57 +235,10 @@ onMounted(async() => {
 
                 const buffer = await data.arrayBuffer()
 
-                future = emu.loadROM(new Uint8Array(buffer))
-                future.catch(err => {
-                    console.error('模拟器不支持该ROM:', err)
-                    notify('error', '模拟器不支持该ROM。')
-                })
+                future = loadROM(new Uint8Array(buffer), e.data.label, e.data.local ?? false)
 
                 await future
 
-                isPlaying.value = true
-                isPaused.value = false
-                isLocalROM.value = e.data.isLocal ?? false
-                currentGame.value = e.data.label || 'Unknown Game'
-
-                future = emu.start()
-                future.catch(err => {
-                    console.error('模拟器启动失败:', err)
-                    notify('error', '模拟器启动失败。')
-                    isLoading.value = false
-                })
-
-                await future
-                    
-                future = loadGameData(currentGame.value, db.value!)
-                future.catch(err => {
-                    console.error('加载游戏数据失败', err)
-                    notify('error', '加载游戏数据失败')
-                    isLoading.value = false
-                })
-
-                await future
-
-                future = loadCheats(emu, currentGame.value, db.value!)
-                future.catch(err => {
-                    console.error('加载金手指失败', err)
-                    notify('error', '加载金手指失败')
-                    isLoading.value = false
-                })
-
-                await future
-
-                applySettings()
-
-                downloader.executor = () => {
-                    vscode.postMessage({
-                        type: 'download',
-                        filename: e.data.label || 'Unknown Game',
-                        content: buffer,
-                    })
-                }
-
-                isLoading.value = false
                 break
             }
             
@@ -237,7 +257,21 @@ onMounted(async() => {
 
             case 'openROM':
                 isLoading.value = true
-                stopGame()
+                
+                if (emu && typeof emu.pause === 'function') {
+                    try {
+                        emu.pause()
+                    }
+                    catch(err) {
+
+                        console.warn('emu.pause failed', err)
+                    }
+                }
+                isPlaying.value = false
+                isPaused.value = false
+                isDownloading.value = true
+                currentGame.value = ''
+                downloadingProgress.value = 0
                 let future: Promise<any>
 
                 if (abortController) {
@@ -251,87 +285,67 @@ onMounted(async() => {
                 future.catch(err => {
                     console.error('下载ROM失败:', err)
                     notify('error', '下载ROM失败，网络不稳定或地址已失效。')
-                }).finally(() => {
                     isLoading.value = false
+                }).finally(() => {
                     abortController = null
                 })
+
                 const response: Response = await future
 
-                future = response.arrayBuffer()
-                const buffer = await future
-                const extractPromise = extract7z(new Uint8Array(buffer))
-                extractPromise.catch(() => {
+                const contentLength = response.headers.get('Content-Length')
+                const total = contentLength ? Number.parseInt(contentLength, 10) : 0
+                let loaded = 0
+                const reader = response.body!.getReader()
+                const chunks: Uint8Array[] = []
+                while (true) {
+                    const { done, value } = await reader.read()
+                    if (done) break
+                    if (value) {
+                        chunks.push(value)
+                        loaded += value.length
+                        if (total) {
+                            downloadingProgress.value = Math.floor(loaded / total * 100)
+                        }
+                    }
+                }
+
+                isDownloading.value = false
+
+                // const buffer = await response.arrayBuffer()
+                const buffer = new Uint8Array(loaded)
+                let position = 0
+                for (const chunk of chunks) {
+                    buffer.set(chunk, position)
+                    position += chunk.length
+                }
+
+                isExtracting.value = true
+                future = extract7z(new Uint8Array(buffer))
+                future.catch(() => {
                     console.error('解压7z失败')
                     notify('error', '解压7z失败，文件可能已损坏。')
                     isLoading.value = false
                 })
-                const zipFiles = await extractPromise
+                const zipFiles: ExtractedFilesMap = await future
+                isExtracting.value = false
+                isLoading.value = false
 
                 for (const filename in zipFiles) {
                     if (filename.endsWith('.nes')) {
                         const data = zipFiles[filename]!
-                        downloader.executor = () => {
-                            vscode.postMessage({
-                                type: 'download',
-                                filename,
-                                content: data,
-                            })
-                        }
-
-                        future = emu.loadROM(data)
-                        future.catch(() => {
-                            console.error('模拟器不支持该ROM')
-                            notify('error', '模拟器不支持该ROM')
-                            isLoading.value = false
-                        })
-
-                        await future
-                        
-                        isPlaying.value = true
-                        isPaused.value = false
-                        isLocalROM.value = e.data.local ?? false
-                        currentGame.value = filename.replace('.nes', '')
-                        
-                        future = emu.start()
-                        future.catch(err => {
-                            console.error('模拟器启动失败', err)
-                            notify('error', '模拟器启动失败')
-                            isLoading.value = false
-                        })
-                        
+                        future = loadROM(data, filename, false)
                         await future
 
-                        future = loadGameData(currentGame.value, db.value!)
-                        future.catch(err => {
-                            console.error('加载游戏数据失败', err)
-                            notify('error', '加载游戏数据失败')
-                            isLoading.value = false
-                        })
-
-                        await future
-
-                        future = loadCheats(emu, currentGame.value, db.value!)
-                        future.catch(err => {
-                            console.error('加载金手指失败', err)
-                            notify('error', '加载金手指失败')
-                            isLoading.value = false
-                        })
-
-                        await future
-
-                        applySettings()
-    
                         return
                     }
                 }
-                isLoading.value = false
         }
     })
 
     // 用户交互音频启用
-    window.addEventListener('click', onInteraction, { once: true })
-    window.addEventListener('keydown', onInteraction, { once: true })
-    window.addEventListener('touchstart', onInteraction, { once: true })
+    window.addEventListener('click', onInteraction)
+    window.addEventListener('keydown', onInteraction)
+    window.addEventListener('touchstart', onInteraction)
     
     vscode.postMessage({ type: 'ready' })
 })
@@ -343,9 +357,61 @@ onMounted(async() => {
       v-if="isLoading"
       class="loading-overlay"
     >
-      <div class="loading-spinner" />
+      <div
+        class="download-progress"
+      >
+        <svg
+          class="progress-ring"
+          viewBox="0 0 120 120"
+          width="72"
+          height="72"
+          aria-hidden
+        >
+          <defs>
+            <linearGradient
+              id="ringGrad"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop
+                offset="0%"
+                stop-color="#4facfe"
+              />
+              <stop
+                offset="100%"
+                stop-color="#00f2fe"
+              />
+            </linearGradient>
+          </defs>
+          <circle
+            class="ring-bg"
+            cx="60"
+            cy="60"
+            r="52"
+            fill="none"
+            stroke-width="12"
+          />
+          <circle
+            class="ring-fg"
+            cx="60"
+            cy="60"
+            r="52"
+            fill="none"
+            stroke="url(#ringGrad)"
+            stroke-width="12"
+            stroke-linecap="round"
+            :stroke-dasharray="ringCircumference"
+            :stroke-dashoffset="ringDashOffset"
+          />
+        </svg>
+        <div class="download-percent">
+          {{ downloadingProgress }}%
+        </div>
+      </div>
       <div class="loading-text">
-        正在下载和解压ROM，请稍候...
+        {{ loadingLabel }}<Dotting />
       </div>
     </div>
     <!-- 游戏画面容器 -->
@@ -422,30 +488,16 @@ onMounted(async() => {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0,0,0,0.5);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 9999;
 }
-.loading-spinner {
-    width: 48px;
-    height: 48px;
-    border: 6px solid #ccc;
-    border-top: 6px solid #2196f3;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 16px;
-}
 .loading-text {
     color: #fff;
     font-size: 1.2em;
     text-align: center;
-}
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
 }
 
 .game-viewport {
@@ -475,4 +527,27 @@ onMounted(async() => {
     padding: var(--spacing-small, 12px);
   }
 }
+
+/* 环形进度样式 */
+.download-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+.progress-ring {
+    transform: rotate(-90deg);
+}
+.ring-bg {
+    stroke: rgba(255,255,255,0.08);
+}
+.ring-fg {
+    transition: stroke-dashoffset 250ms linear;
+}
+.download-percent {
+    color: #fff;
+    font-size: 0.95rem;
+}
 </style>
+

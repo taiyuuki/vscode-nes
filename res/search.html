@@ -24,8 +24,7 @@
         }
 
         form {
-            display: flex;
-            gap: 6px;
+            width: 100%;
         }
 
         input[type=text] {
@@ -125,25 +124,38 @@
 </head>
 
 <body>
-    <form id="f" style="flex-wrap:wrap;gap:6px;align-items:center;">
-        <select id="type1" title="游戏类型"
-            style="padding:2px 4px;background:var(--vscode-dropdown-background);color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);">
-            <option value="all">全部游戏</option>
-            <option value="Action">动作</option>
-            <option value="Adventure">冒险</option>
-            <option value="RPG">RPG</option>
-            <option value="S.RPG">S.RPG</option>
-            <option value="A.RPG">A.RPG</option>
-            <option value="Intelligence">智力</option>
-            <option value="Sport">体育</option>
-            <option value="Shooting">射击</option>
-            <option value="Fighting">格斗</option>
-            <option value="Simulation">模拟</option>
-            <option value="Entertainment">娱乐</option>
-            <option value="Strategy">策略</option>
-            <option value="Other">其他</option>
-        </select>
-        <input id="kw" type="text" placeholder="搜索游戏" />
+    <form id="f">
+        <input style="width: 100%;padding: 4px 2px;" id="kw" type="text" placeholder="搜索游戏" />
+        <div style="margin-top:4px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+            <select id="type1" title="游戏类型"
+                style="padding:2px 4px;background:var(--vscode-dropdown-background);color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);">
+                <option value="all">全部游戏</option>
+                <option value="Action">动作</option>
+                <option value="Adventure">冒险</option>
+                <option value="RPG">RPG</option>
+                <option value="S.RPG">S.RPG</option>
+                <option value="A.RPG">A.RPG</option>
+                <option value="Intelligence">智力</option>
+                <option value="Sport">体育</option>
+                <option value="Shooting">射击</option>
+                <option value="Fighting">格斗</option>
+                <option value="Simulation">模拟</option>
+                <option value="Entertainment">娱乐</option>
+                <option value="Strategy">策略</option>
+                <option value="Other">其他</option>
+            </select>
+            <select id="orderBy" title="排序方式"
+                style="padding:2px 4px;background:var(--vscode-dropdown-background);color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);">
+                <option value="name_en" selected>按英文名排序</option>
+                <option value="name_cn">按中文名排序</option>
+                <option value="good">按推荐度排序</option>
+            </select>
+            <select id="orderDir" title="排序方向"
+                style="padding:2px 4px;background:var(--vscode-dropdown-background);color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);">
+                <option value="ASC" selected>升序</option>
+                <option value="DESC">降序</option>
+            </select>
+        </div>
     </form>
     <div class="meta" id="meta">未搜索</div>
     <div class="list-area">
@@ -175,6 +187,8 @@
         const meta = document.getElementById('meta');
         const results = document.getElementById('results');
         const pageSizeSel = document.getElementById('pageSize');
+        const orderBySel = document.getElementById('orderBy');
+        const orderDirSel = document.getElementById('orderDir');
         const pager = document.getElementById('pager');
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
@@ -182,6 +196,7 @@
         let currentPage = 0;
         let totalPages = 0;
         let lastKeyword = '';
+        let isSearching = false;
 
         const debounce = (func, delay) => {
             let timer;
@@ -191,12 +206,24 @@
             };
         };
 
-        const search = debounce(function () {
+        const searchImmediate = function () {
+            if (isSearching) return;
+            isSearching = true;
             const k = input.value.trim();
             const ps = Number(pageSizeSel.value) || 10;
-            vscode.postMessage({ type: 'search', keyword: k, type1: typeSel.value, pageSize: ps });
-            meta.textContent = k ? '搜索中...' : '未搜索';
-        }, 300);
+            vscode.postMessage({
+                type: 'search',
+                keyword: k,
+                type1: typeSel.value,
+                orderBy: orderBySel.value,
+                orderDir: orderDirSel.value,
+                page: currentPage,
+                pageSize: ps,
+            });
+            meta.textContent = k ? '搜索中...' : '';
+        };
+
+        const search = debounce(searchImmediate, 100);
 
         input.addEventListener('compositionstart', () => {
             input._composing = true;
@@ -204,31 +231,46 @@
 
         input.addEventListener('compositionend', () => {
             input._composing = false;
-            search();
+            currentPage = 0;
+            searchImmediate();
         });
 
         input.addEventListener('input', () => {
             if (!input._composing) {
+                currentPage = 0;
                 search();
             }
         });
 
         form.addEventListener('submit', e => {
             e.preventDefault();
-            search();
+            searchImmediate();
         });
 
         typeSel.addEventListener('change', () => {
-            search();
+            currentPage = 0;
+            searchImmediate();
         });
 
         pageSizeSel.addEventListener('change', () => {
-            search();
+            currentPage = 0;
+            searchImmediate();
+        });
+
+        orderBySel.addEventListener('change', () => {
+            currentPage = 0;
+            searchImmediate();
+        });
+
+        orderDirSel.addEventListener('change', () => {
+            currentPage = 0;
+            searchImmediate();
         });
 
         window.addEventListener('message', e => {
             const m = e.data;
             if (m.type === 'results') {
+                isSearching = false;
                 lastKeyword = m.keyword;
                 currentPage = m.page;
                 totalPages = m.totalPages;
@@ -264,7 +306,7 @@
                     const d = document.createElement('div');
                     d.className = 'rom';
                     d.textContent = r;
-                    d.addEventListener('click', () => vscode.postMessage({ type: 'openROM', game: g, rom: r.replace('.nes', '.7z') }));
+                    d.addEventListener('click', () => vscode.postMessage({ type: 'openROM', game: g, rom: r }));
                     roms.appendChild(d);
                 });
                 const header = wrap.querySelector('.group-header');
@@ -278,13 +320,20 @@
             results.scrollTop = 0;
         }
 
-        prevBtn.addEventListener('click', () => { if (currentPage > 1) vscode.postMessage({ type: 'page', type1: typeSel.value, page: currentPage - 1 }); });
-        nextBtn.addEventListener('click', () => { if (currentPage < totalPages) vscode.postMessage({ type: 'page', type1: typeSel.value, page: currentPage + 1 }); });
-
-        window.addEventListener('load', () => {
-            // vscode.postMessage({ type: 'search', keyword: lastKeyword, type1: typeSel.value, pageSize: Number(pageSizeSel.value) || 10 });
-            search()
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                searchImmediate();
+            }
         });
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                searchImmediate();
+            }
+        });
+
+        window.addEventListener('load', search);
     </script>
 </body>
 
