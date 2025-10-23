@@ -231,7 +231,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (existsSync(url)) {
                 const finalUrl = panelManager.panel.webview.asWebviewUri(vscode.Uri.file(url)).toString()
-                panelManager.postMessage({ type: 'play', label: finalUrl, url: finalUrl, local: true })
+                panelManager.postMessage({ type: 'play', label, url: finalUrl, local: true })
             }
             else {
                 vscode.commands.executeCommand('vscodeNes.sendMessage', '文件已不存在')

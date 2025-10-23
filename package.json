@@ -52,7 +52,7 @@
       "vscode-nes": [
         {
           "id": "vscodeNes.searchROM",
-          "name": "搜索",
+          "name": "搜索游戏",
           "type": "webview"
         },
         {

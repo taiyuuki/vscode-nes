@@ -149,7 +149,8 @@ const downloader = { executor: () => {} }
 let abortController: AbortController | null = null
 
 async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
-
+  
+    currentGame.value = label || 'Unknown Game'
     downloader.executor = () => {
         vscode.postMessage({
             type: 'download',
@@ -170,12 +171,10 @@ async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
     isPlaying.value = true
     isPaused.value = false
     isLocalROM.value = isLocal ?? false
-    currentGame.value = label || 'Unknown Game'
                     
     future = loadGameData(currentGame.value, db.value!)
     future.catch(err => {
         console.error('加载游戏数据失败', err)
-        notify('error', '加载游戏数据失败')
         isLoading.value = false
     })
 
@@ -184,7 +183,6 @@ async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
     future = loadCheats(emu, currentGame.value, db.value!)
     future.catch(err => {
         console.error('加载金手指失败', err)
-        notify('error', '加载金手指失败')
         isLoading.value = false
     })
 
@@ -203,12 +201,15 @@ async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
 }
 
 onMounted(async() => {
-
+  
     // 初始化数据库
     db.value = await initDB()
-    
+  
     // 加载设置
     await loadSettings(db.value)
+
+    // 第一次打开时静音
+    settings.muted = true
     
     // 创建模拟器实例
     emu = new NESEmulator($cvs.value, {
@@ -234,6 +235,7 @@ onMounted(async() => {
                 const data: Response = await future
 
                 const buffer = await data.arrayBuffer()
+                currentGame.value = e.data.label || 'Unknown Game'
 
                 future = loadROM(new Uint8Array(buffer), e.data.label, e.data.local ?? false)
 
@@ -270,8 +272,12 @@ onMounted(async() => {
                 isPlaying.value = false
                 isPaused.value = false
                 isDownloading.value = true
-                currentGame.value = ''
                 downloadingProgress.value = 0
+
+                const ctx = $cvs.value.getContext('2d')!
+                ctx.fillStyle = '#000000'
+                ctx.fillRect(0, 0, $cvs.value.width, $cvs.value.height)
+
                 let future: Promise<any>
 
                 if (abortController) {

@@ -16,7 +16,7 @@ export function useEmulatorSettings() {
     const settings = reactive<EmulatorSettings>({
         scale: 2,
         smoothing: false,
-        muted: false,
+        muted: true,
         volume: 0.8,
         clip8px: false,
         notifications: true,

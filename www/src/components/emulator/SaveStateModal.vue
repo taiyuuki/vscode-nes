@@ -33,6 +33,8 @@ const SLOT_COUNT = 4
 
 function getSaveBySlot(slotId: number): SaveState | null {
     if (!props.currentGame || !props.gameData[props.currentGame]) return null
+
+    // console.log(props.currentGame)
     const gameInfo = props.gameData[props.currentGame]!
 
     return gameInfo.saves.find(save => 

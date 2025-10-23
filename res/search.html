@@ -91,6 +91,42 @@
             background: var(--vscode-list-hoverBackground);
         }
 
+        .star-active {
+            -webkit-text-size-adjust: 100%;
+            text-rendering: optimizeLegibility;
+            -webkit-tap-highlight-color: transparent;
+            width: 1em;
+            height: 1em;
+            flex-shrink: 0;
+            text-align: center;
+            box-sizing: content-box;
+            fill: currentColor;
+            user-select: none;
+            cursor: inherit;
+            font-size: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 1px 2px rgba(0, 0, 0, .24);
+            position: relative;
+            transition: transform .2s ease-in, opacity .2s ease-in, color .2s ease-in;
+            opacity: 1;
+            color: #66bb6a !important;
+            font-family: Material Icons;
+            font-weight: 400;
+            font-style: normal;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-feature-settings: "liga";
+            -webkit-font-feature-settings: "liga";
+            -webkit-font-smoothing: antialiased;
+        }
+
         .chevron {
             transition: transform .15s;
         }
@@ -146,14 +182,14 @@
             </select>
             <select id="orderBy" title="排序方式"
                 style="padding:2px 4px;background:var(--vscode-dropdown-background);color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);">
-                <option value="name_en" selected>按英文名排序</option>
-                <option value="name_cn">按中文名排序</option>
-                <option value="good">按推荐度排序</option>
+                <option value="name_en" selected>按英文名</option>
+                <option value="name_cn">按中文名</option>
+                <option value="good">按推荐度</option>
             </select>
             <select id="orderDir" title="排序方向"
                 style="padding:2px 4px;background:var(--vscode-dropdown-background);color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);">
-                <option value="ASC" selected>升序</option>
-                <option value="DESC">降序</option>
+                <option value="ASC" selected>正序</option>
+                <option value="DESC">倒序</option>
             </select>
         </div>
     </form>
@@ -298,9 +334,11 @@
                 }
                 const romList = JSON.parse(g.roms);
 
+                const star = `<div style="width:15px;height:15px;margin-right:-8px;fill:var(--vscode-button-background)"><svg viewBox="0 0 24 24"><path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"></path></svg></div>`.repeat(g.good);
+
                 const wrap = document.createElement('div');
                 wrap.className = 'group';
-                wrap.innerHTML = '<div class="group-header"><span class="chevron">▾</span><span>' + escapeHtml(name) + '</span><span style="opacity:.6;font-size:11px;">(' + romList.length + ')</span></div><div class="roms"></div>';
+                wrap.innerHTML = '<div class="group-header"><span class="chevron">▾</span><span>' + escapeHtml(name) + '</span><span style="opacity:.6;font-size:11px;">(' + romList.length + ')</span>' + star + '</div><div class="roms"></div>';
                 const roms = wrap.querySelector('.roms');
                 romList.forEach(r => {
                     const d = document.createElement('div');
