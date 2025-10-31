@@ -33,8 +33,8 @@ class PanelManager {
         })
         this.panel.onDidChangeViewState(e => {
             this.panel?.webview.postMessage({ type: 'changeViewState', visible: e.webviewPanel.visible })
-            
         })
+
         this.panel.onDidDispose(() => this.panel = null)
         this.context.subscriptions.push(this.panel)
     }

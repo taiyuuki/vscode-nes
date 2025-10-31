@@ -326,7 +326,7 @@ onMounted(async() => {
                 }
 
                 isExtracting.value = true
-                future = extract7z(new Uint8Array(buffer))
+                future = extract7z(buffer)
                 future.catch(() => {
                     console.error('解压7z失败')
                     notify('error', '解压7z失败，文件可能已损坏。')
@@ -347,15 +347,13 @@ onMounted(async() => {
                 }
                 break
             case 'changeViewState':
-                if (e.data.visible) {
+                if (e.data.visible && !isPaused.value) {
                     emu.resume()
                 }
-                else {
-
-                    // 离开页面时 暂停
+                else if (!isPaused.value) {
                     emu.pause()
                 }
-
+                break
         }
     })
 
