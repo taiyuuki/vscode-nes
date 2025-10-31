@@ -193,6 +193,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.executeCommand('vscodeNes.sendMessage', data.message)
     })
     panelManager.registerMessageHandler('ready', () => {
+        panelManager.postMessage({ type: 'setController', controller })
         if (payload) {
             panelManager.panel?.reveal()
             let url = payload.url
