@@ -65,6 +65,12 @@ function handleChange() {
             <option :value="4">
               4x (1024×960)
             </option>
+            <option :value="5">
+              5x (1280×1200)
+            </option>
+            <option :value="6">
+              6x (1536×1440)
+            </option>
           </select>
         </div>
         
@@ -142,7 +148,7 @@ function handleChange() {
               class="setting-checkbox"
               @change="handleChange"
             >
-            <span>启用通知</span>
+            <span>开启</span>
           </label>
         </div>
       </div>

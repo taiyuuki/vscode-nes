@@ -19,7 +19,7 @@ export function useEmulatorSettings() {
         muted: true,
         volume: 0.8,
         clip8px: false,
-        notifications: true,
+        notifications: false,
     })
 
     async function loadSettings(db: IDBDatabase) {

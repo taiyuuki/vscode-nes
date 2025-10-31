@@ -208,7 +208,7 @@ onMounted(async() => {
     // 加载设置
     await loadSettings(db.value)
 
-    // 第一次打开时静音
+    // 首次加载静音
     settings.muted = true
     
     // 创建模拟器实例
@@ -345,6 +345,17 @@ onMounted(async() => {
                         return
                     }
                 }
+                break
+            case 'changeViewState':
+                if (e.data.visible) {
+                    emu.resume()
+                }
+                else {
+
+                    // 离开页面时 暂停
+                    emu.pause()
+                }
+
         }
     })
 
