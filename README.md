@@ -10,7 +10,7 @@
 
 这是一款可以玩 FC(NES) 游戏的 VS Code 插件，内置了超过3000个游戏的远程ROM，你还可以自己添加本地ROM。
 
-v1.0.0版本改用[nesjs](https://github.com/taiyuuki/nesjs)，这是我自己用TS写的NES模拟器库，大幅提升对各类ROM的兼容性，覆盖 99% 原版游戏ROM，大部分改版、汉化版游戏ROM也都能正常运行。
+^1.0.0 版本改用[nesjs](https://github.com/taiyuuki/nesjs)，这是我自己用TS写的NES模拟器库，大幅提升对各类ROM的兼容性，覆盖 99% 原版游戏ROM，大部分改版、汉化版游戏ROM也都能正常运行。
 
 VS Code版本要求： >= 1.75.0
 
