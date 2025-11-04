@@ -89,6 +89,10 @@ function togglePlayPause() {
 function resetGame() {
     if (!emu) return
     emu.reset()
+    if (isPaused.value) {
+        emu.resume()
+        isPaused.value = false
+    }
 }
 
 // 应用设置
