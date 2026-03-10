@@ -157,9 +157,9 @@ async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
     currentGame.value = label || 'Unknown Game'
     downloader.executor = () => {
         vscode.postMessage({
-            type: 'download',
+            type:     'download',
             filename: label || 'Unknown Game',
-            content: buffer,
+            content:  buffer,
         })
     }
 
@@ -217,11 +217,11 @@ onMounted(async() => {
     
     // 创建模拟器实例
     emu = new NESEmulator($cvs.value, {
-        scale: settings.scale,
-        smoothing: settings.smoothing,
+        scale:           settings.scale,
+        smoothing:       settings.smoothing,
         audioSampleRate: 44100,
-        enableCheat: true,
-        clip8px: settings.clip8px,
+        enableCheat:     true,
+        clip8px:         settings.clip8px,
     })
     
     // 监听VSCode消息
@@ -266,7 +266,7 @@ onMounted(async() => {
                 
                 if (emu && typeof emu.pause === 'function') {
                     try {
-                        emu.pause()
+                        await emu.pause()
                     }
                     catch(err) {
 

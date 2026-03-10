@@ -1,22 +1,22 @@
 <script setup lang="ts">
 interface SaveState {
-    id: string
-    name: string
-    timestamp: number
-    data: Uint8Array
+    id:          string
+    name:        string
+    timestamp:   number
+    data:        Uint8Array
     screenshot?: string
 }
 
 interface Props {
-    slotId: number
+    slotId:    number
     saveState: SaveState | null
 }
 
 defineProps<Props>()
 
 const emit = defineEmits<{
-    save: []
-    load: [saveState: SaveState]
+    save:   []
+    load:   [saveState: SaveState]
     delete: [saveState: SaveState]
 }>()
 

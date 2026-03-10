@@ -2,11 +2,11 @@ import { reactive, ref } from 'vue'
 import type { NESEmulator } from '@nesjs/native'
 
 export interface EmulatorSettings {
-    scale: number
-    smoothing: boolean
-    muted: boolean
-    volume: number
-    clip8px: boolean
+    scale:         number
+    smoothing:     boolean
+    muted:         boolean
+    volume:        number
+    clip8px:       boolean
     notifications: boolean
 }
 
@@ -14,11 +14,11 @@ export function useEmulatorSettings() {
     const showSettings = ref(false)
 
     const settings = reactive<EmulatorSettings>({
-        scale: 2,
-        smoothing: false,
-        muted: true,
-        volume: 0.8,
-        clip8px: false,
+        scale:         2,
+        smoothing:     false,
+        muted:         true,
+        volume:        0.8,
+        clip8px:       false,
         notifications: false,
     })
 

@@ -7,8 +7,8 @@ export class RomTreeItem extends vscode.TreeItem {
     constructor(label: string, url: string, key: string, icon: vscode.ThemeIcon | string) {
         super(label, vscode.TreeItemCollapsibleState.None)
         this.command = {
-            title: 'Play Game',
-            command: 'vscodeNes.play',
+            title:     'Play Game',
+            command:   'vscodeNes.play',
             arguments: [label, url],
         }
         this.key = key

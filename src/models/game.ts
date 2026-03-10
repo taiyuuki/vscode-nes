@@ -2,20 +2,20 @@ import type { Database } from 'node-sqlite3-wasm'
 import { QueryBuilder } from 'src/sqlite3/queryBuilder'
 
 export interface Game {
-    id: number
-    copyright: string
+    id:           number
+    copyright:    string
     copyright_en: string
-    platform: string
-    name_en: string
-    name_cn: string
-    name_jp: string
-    type1: string
-    type1_en: string
-    type2: string
-    type2_en: string
-    company: string
-    release0: string
-    roms: string
+    platform:     string
+    name_en:      string
+    name_cn:      string
+    name_jp:      string
+    type1:        string
+    type1_en:     string
+    type2:        string
+    type2_en:     string
+    company:      string
+    release0:     string
+    roms:         string
 }
 
 export class GameDao {
@@ -41,11 +41,11 @@ export class GameDao {
     }
 
     search(options: {
-        name: string
-        type1: string
-        page: number
-        pageSize: number
-        orderBy?: string
+        name:      string
+        type1:     string
+        page:      number
+        pageSize:  number
+        orderBy?:  string
         orderDir?: 'ASC' | 'DESC'
     }) {
         const { name, type1, page, pageSize, orderBy = 'name_cn', orderDir = 'DESC' } = options

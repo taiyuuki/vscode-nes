@@ -1,8 +1,8 @@
 <script setup lang="ts">
 interface CheatCode {
-    code: string
+    code:        string
     description: string
-    enabled: boolean
+    enabled:     boolean
 }
 
 interface Props { cheat: CheatCode }

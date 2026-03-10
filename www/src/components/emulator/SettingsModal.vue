@@ -3,11 +3,11 @@ import { reactive, watch } from 'vue'
 import Modal from './Modal.vue'
 
 interface EmulatorSettings {
-    scale: number
-    smoothing: boolean
-    muted: boolean
-    volume: number
-    clip8px: boolean
+    scale:         number
+    smoothing:     boolean
+    muted:         boolean
+    volume:        number
+    clip8px:       boolean
     notifications: boolean
 }
 
@@ -16,7 +16,7 @@ interface Props { settings: EmulatorSettings }
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-    'close': []
+    'close':           []
     'update:settings': [settings: EmulatorSettings]
 }>()
 

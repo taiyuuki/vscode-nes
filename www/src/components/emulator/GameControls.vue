@@ -7,11 +7,11 @@ const isLocalROM = defineModel<boolean>('isLocal', { required: true })
 
 const emit = defineEmits<{
     togglePlayPause: []
-    reset: []
-    openSaves: []
-    openSettings: []
-    openCheats: []
-    download: []
+    reset:           []
+    openSaves:       []
+    openSettings:    []
+    openCheats:      []
+    download:        []
 }>()
 </script>
 

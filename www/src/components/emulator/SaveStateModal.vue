@@ -3,29 +3,29 @@ import Modal from './Modal.vue'
 import SaveSlot from './SaveSlot.vue'
 
 interface SaveState {
-    id: string
-    name: string
-    timestamp: number
-    data: Uint8Array
+    id:          string
+    name:        string
+    timestamp:   number
+    data:        Uint8Array
     screenshot?: string
 }
 
 interface GameData {
-    name: string
+    name:  string
     saves: SaveState[]
 }
 
 interface Props {
     currentGame: string
-    gameData: Record<string, GameData>
+    gameData:    Record<string, GameData>
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-    close: []
-    save: [slotId: number]
-    load: [saveState: SaveState]
+    close:  []
+    save:   [slotId: number]
+    load:   [saveState: SaveState]
     delete: [saveState: SaveState]
 }>()
 

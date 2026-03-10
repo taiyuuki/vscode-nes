@@ -4,9 +4,9 @@ import Modal from './Modal.vue'
 import CheatItem from './CheatItem.vue'
 
 interface CheatCode {
-    code: string
+    code:        string
     description: string
-    enabled: boolean
+    enabled:     boolean
 }
 
 interface Props { cheats: CheatCode[] }
@@ -14,8 +14,8 @@ interface Props { cheats: CheatCode[] }
 defineProps<Props>()
 
 const emit = defineEmits<{
-    close: []
-    add: [code: string, description: string]
+    close:  []
+    add:    [code: string, description: string]
     toggle: [cheat: CheatCode]
     remove: [cheat: CheatCode]
 }>()

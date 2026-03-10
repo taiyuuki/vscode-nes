@@ -1,17 +1,17 @@
 import wasmUrl from 'js7z-tools/js7z.wasm?url'
 
 interface Extract7zOptions {
-    password?: string
+    password?:     string
     onMessage?(line: string): void
     onError?(line: string): void
-    signal?: AbortSignal
+    signal?:       AbortSignal
     filter?(filePath: string): boolean
-    timeoutMs?: number // 可选：解压超时（毫秒），默认 15000
+    timeoutMs?:    number // 可选：解压超时（毫秒），默认 15000
     // 如果宿主不支持 SharedArrayBuffer（无法启用 cross-origin isolation），可选择单线程构建
     singleThread?: boolean
 
     // 可指定单线程构建的资源位置（当 singleThread 为 true 时优先使用）
-    stJsUrl?: string
+    stJsUrl?:   string
     stWasmUrl?: string
 }
 

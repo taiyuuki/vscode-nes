@@ -3,15 +3,15 @@ import type { NESEmulator } from '@nesjs/native'
 import { useEmulatorSettings } from './useEmulatorSettings'
 
 interface SaveState {
-    id: string
-    name: string
-    timestamp: number
-    data: Uint8Array
+    id:          string
+    name:        string
+    timestamp:   number
+    data:        Uint8Array
     screenshot?: string
 }
 
 interface GameData {
-    name: string
+    name:  string
     saves: SaveState[]
 }
 
@@ -36,7 +36,7 @@ export function useGameState(vscode: any) {
             })
 
             gameData.value[gameName] = {
-                name: gameName,
+                name:  gameName,
                 saves: saves || [],
             }
         }
@@ -64,10 +64,10 @@ export function useGameState(vscode: any) {
             const screenshot = canvas.toDataURL('image/png')
 
             const saveStateData: SaveState = {
-                id: `${currentGame.value}_slot_${slotId}`,
-                name: `存档槽 ${slotId}`,
+                id:        `${currentGame.value}_slot_${slotId}`,
+                name:      `存档槽 ${slotId}`,
                 timestamp: Date.now(),
-                data: stateData,
+                data:      stateData,
                 screenshot,
             }
 

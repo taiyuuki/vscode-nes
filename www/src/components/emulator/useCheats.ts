@@ -3,9 +3,9 @@ import type { NESEmulator } from '@nesjs/native'
 import { useEmulatorSettings } from './useEmulatorSettings'
 
 interface CheatCode {
-    code: string
+    code:        string
     description: string
-    enabled: boolean
+    enabled:     boolean
 }
 
 export function useCheats(vscode: any) {
@@ -33,9 +33,9 @@ export function useCheats(vscode: any) {
 
             // 重新加载金手指，默认都设为禁用状态
             cheats.value = (gameCheats || []).map((cheat: any) => ({
-                code: cheat.code,
+                code:        cheat.code,
                 description: cheat.description,
-                enabled: false, // 默认关闭
+                enabled:     false, // 默认关闭
             }))
         }
         catch(error) {
@@ -72,14 +72,14 @@ export function useCheats(vscode: any) {
             const cheat: CheatCode = {
                 code,
                 description: description || '未命名金手指',
-                enabled: true,
+                enabled:     true,
             }
 
             // 保存到IndexedDB
             const transaction = db.transaction(['cheats'], 'readwrite')
             const store = transaction.objectStore('cheats')
             store.put({
-                id: `${gameName}_${cheat.code}`,
+                id:   `${gameName}_${cheat.code}`,
                 game: gameName,
                 ...cheat,
             })
@@ -124,7 +124,7 @@ export function useCheats(vscode: any) {
             const transaction = db.transaction(['cheats'], 'readwrite')
             const store = transaction.objectStore('cheats')
             store.put({
-                id: `${gameName}_${cheat.code}`,
+                id:   `${gameName}_${cheat.code}`,
                 game: gameName,
                 ...cheat,
             })

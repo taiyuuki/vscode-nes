@@ -79,7 +79,7 @@ export function objectKeys<T extends object>(obj: T): (keyof T)[] {
     return Object.keys(obj) as (keyof T)[]
 }
 
-export function groupBy<T>(arr: T[], key: (item: T)=> string): Record<string, T[]> {
+export function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
     return arr.reduce((acc, cur) => {
         const k = key(cur)
         if (k in acc) {

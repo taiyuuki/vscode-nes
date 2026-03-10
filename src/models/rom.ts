@@ -3,10 +3,10 @@ import { QueryBuilder } from 'src/sqlite3/queryBuilder'
 
 // ROM数据模型
 export interface Rom {
-    id: number
-    mapper: number
+    id:       number
+    mapper:   number
     filename: string
-    gameid: number
+    gameid:   number
 }
 
 export class RomDao {

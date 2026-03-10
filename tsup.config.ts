@@ -42,17 +42,17 @@ const copyFile = (src: string, dest: string) => {
 }
 
 export default defineConfig({
-    entry: ['src/index.ts'],
-    target: 'esnext',
+    entry:     ['src/index.ts'],
+    target:    'esnext',
     splitting: false,
-    clean: true,
-    external: [
+    clean:     true,
+    external:  [
         'vscode',
     ],
     noExternal: [
         'node-sqlite3-wasm',
     ],
-    format: ['cjs'],
+    format:  ['cjs'],
     plugins: [
         {
             name: 'copy-files',

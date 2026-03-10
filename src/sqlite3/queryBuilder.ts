@@ -4,15 +4,15 @@ import type { Database } from 'node-sqlite3-wasm'
  * SQL查询构建器 - 用于简化数据库操作，避免手写SQL
  */
 export class QueryBuilder {
-    private db: Database
+    private db:        Database
     private tableName: string
 
     private conditions: { conj: 'AND' | 'OR'; sql: string }[] = []
-    private params: any[] = []
-    private fields: string = '*'
-    private limit: number | null = null
-    private offset: number = 0
-    private orderBy: string = ''
+    private params:     any[] = []
+    private fields:     string = '*'
+    private limit:      number | null = null
+    private offset:     number = 0
+    private orderBy:    string = ''
 
     constructor(db: Database, tableName: string) {
         this.db = db

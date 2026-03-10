@@ -6,31 +6,31 @@ import { extract7z } from '../7z'
 const vscode = acquireVsCodeApi()
 
 interface SaveState {
-    id: string
-    name: string
-    timestamp: number
-    data: Uint8Array
+    id:          string
+    name:        string
+    timestamp:   number
+    data:        Uint8Array
     screenshot?: string
 }
 
 interface GameData {
-    name: string
+    name:  string
     saves: SaveState[]
 }
 
 interface EmulatorSettings {
-    scale: number
-    smoothing: boolean
-    muted: boolean
-    volume: number
-    clip8px: boolean
+    scale:         number
+    smoothing:     boolean
+    muted:         boolean
+    volume:        number
+    clip8px:       boolean
     notifications: boolean
 }
 
 interface CheatCode {
-    code: string
+    code:        string
     description: string
-    enabled: boolean
+    enabled:     boolean
 }
 
 let emu: NESEmulator
@@ -46,11 +46,11 @@ const showCheatMenu = ref(false)
 
 // 设置选项
 const settings = reactive<EmulatorSettings>({
-    scale: 2,
-    smoothing: false,
-    muted: false,
-    volume: 0.8,
-    clip8px: false,
+    scale:         2,
+    smoothing:     false,
+    muted:         false,
+    volume:        0.8,
+    clip8px:       false,
     notifications: true,
 })
 
@@ -163,10 +163,10 @@ async function saveState(slotId: number) {
         const screenshot = $cvs.value.toDataURL('image/png')
     
         const saveState: SaveState = {
-            id: `${currentGame.value}_slot_${slotId}`,
-            name: `存档槽 ${slotId}`,
+            id:        `${currentGame.value}_slot_${slotId}`,
+            name:      `存档槽 ${slotId}`,
             timestamp: Date.now(),
-            data: stateData,
+            data:      stateData,
             screenshot,
         }
     
@@ -280,9 +280,9 @@ async function loadCheats() {
         
         // 重新加载金手指，默认都设为禁用状态
         const loadedCheats = (gameCheats || []).map((cheat: any) => ({
-            code: cheat.code,
+            code:        cheat.code,
             description: cheat.description,
-            enabled: false, // 默认关闭
+            enabled:     false, // 默认关闭
         }))
         
         cheats.value = loadedCheats
@@ -313,14 +313,14 @@ async function addCheat() {
         }
     
         const cheat: CheatCode = {
-            code: newCheatCode.value,
+            code:        newCheatCode.value,
             description: newCheatDesc.value || '未命名金手指',
-            enabled: true,
+            enabled:     true,
         }
     
         // 使用唯一键保存到IndexedDB
         await saveToIndexedDB('cheats', {
-            id: `${currentGame.value}_${cheat.code}`, // 使用游戏名和代码作为唯一ID
+            id:   `${currentGame.value}_${cheat.code}`, // 使用游戏名和代码作为唯一ID
             game: currentGame.value,
             ...cheat,
         })
@@ -361,7 +361,7 @@ async function toggleCheat(cheat: CheatCode) {
     
         // 更新数据库中的状态
         await saveToIndexedDB('cheats', {
-            id: `${currentGame.value}_${cheat.code}`,
+            id:   `${currentGame.value}_${cheat.code}`,
             game: currentGame.value,
             ...cheat,
         })
@@ -426,7 +426,7 @@ async function loadGameData(gameName: string) {
         const saves: any = await getAllFromIndexedDB('saves', 'game', gameName)
     
         gameData.value[gameName] = {
-            name: gameName,
+            name:  gameName,
             saves: saves || [],
         }
     }
@@ -494,11 +494,11 @@ onMounted(async() => {
   
     // 创建模拟器实例
     emu = new NESEmulator($cvs.value, {
-        scale: settings.scale,
-        smoothing: settings.smoothing,
+        scale:           settings.scale,
+        smoothing:       settings.smoothing,
         audioSampleRate: 44100,
-        enableCheat: true,
-        clip8px: settings.clip8px,
+        enableCheat:     true,
+        clip8px:         settings.clip8px,
     })
   
     // 监听VSCode消息

@@ -7,16 +7,16 @@ import { LocalRomTree } from './romTree'
 import { getGameDao, initDb } from './sqlite3/db'
 
 class PanelManager {
-    panel: vscode.WebviewPanel | null = null
-    messageHandlers: Map<string, ((data: any)=> void)[]> = new Map()
+    panel:           vscode.WebviewPanel | null = null
+    messageHandlers: Map<string, ((data: any) => void)[]> = new Map()
 
     constructor(private context: vscode.ExtensionContext) {}
 
     setPanel() {
         this.panel = vscode.window.createWebviewPanel('vscode-nes', '红白机模拟器', vscode.ViewColumn.One, {
-            enableScripts: true,
+            enableScripts:           true,
             retainContextWhenHidden: true,
-            localResourceRoots: [
+            localResourceRoots:      [
                 vscode.Uri.file(join(os.homedir(), LOCAL_FOLDER)),
                 vscode.Uri.file(join(this.context.extensionPath, 'res')),
             ],
@@ -45,13 +45,13 @@ class PanelManager {
         }
     }
 
-    registerMessageHandler(type: string, handler: (data: any)=> void) {
+    registerMessageHandler(type: string, handler: (data: any) => void) {
         const handlers = this.messageHandlers.get(type) || []
         handlers.push(handler)
         this.messageHandlers.set(type, handlers)
     }
 
-    onDidDispose(callback: ()=> void) {
+    onDidDispose(callback: () => void) {
         if (this.panel) {
             this.panel.onDidDispose(callback)
         }
@@ -67,7 +67,7 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
 
     resolveWebviewView(view: vscode.WebviewView) {
         view.webview.options = {
-            enableScripts: true,
+            enableScripts:      true,
             localResourceRoots: [vscode.Uri.file(join(this.extensionCtxt.extensionPath, 'res'))],
         }
 
@@ -85,11 +85,11 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
         view.webview.onDidReceiveMessage(msg => {
             if (msg.type === 'search') {
                 const pageData = this.search({
-                    keyword: (msg.keyword || '').trim(),
-                    type1: (msg.type1 || 'all').trim().toLowerCase(),
-                    page: msg.page || 1,
+                    keyword:  (msg.keyword || '').trim(),
+                    type1:    (msg.type1 || 'all').trim().toLowerCase(),
+                    page:     msg.page || 1,
                     pageSize: msg.pageSize || 10,
-                    orderBy: msg.orderBy || 'name_cn',
+                    orderBy:  msg.orderBy || 'name_cn',
                     orderDir: msg.orderDir || 'ASC',
                 })
                 
@@ -110,11 +110,11 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private search(options: {
-        keyword: string
-        type1: string
-        page: number
+        keyword:  string
+        type1:    string
+        page:     number
         pageSize: number
-        orderBy: string
+        orderBy:  string
         orderDir: 'ASC' | 'DESC'
     }) {
         const keyword = options.keyword.trim()
@@ -131,16 +131,16 @@ class SearchWebviewProvider implements vscode.WebviewViewProvider {
         const filePath = localRoms[filename]
         if (filePath && existsSync(filePath)) {
             panelManager.postMessage({
-                type: 'play',
+                type:  'play',
                 label: filename,
-                url: panelManager.panel!.webview.asWebviewUri(vscode.Uri.file(filePath)).toString(),
+                url:   panelManager.panel!.webview.asWebviewUri(vscode.Uri.file(filePath)).toString(),
                 local: true,
             })
         }
         else if (game) {
             panelManager.postMessage({
-                type: 'openROM',
-                rom: filename.replace('.nes', '.7z'),
+                type:  'openROM',
+                rom:   filename.replace('.nes', '.7z'),
                 game,
                 local: false,
             })
@@ -253,11 +253,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.add', async() => {
         const files = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
+            canSelectFiles:   true,
             canSelectFolders: false,
-            canSelectMany: true,
-            filters: { nes: ['nes', 'nsf'] },
-            defaultUri: vscode.Uri.file('D:\\'),
+            canSelectMany:    true,
+            filters:          { nes: ['nes', 'nsf'] },
+            defaultUri:       vscode.Uri.file('D:\\'),
         })
         if (files) {
             const userPath = join(os.homedir(), LOCAL_FOLDER)
