@@ -9,7 +9,7 @@ import SettingsModal from './emulator/SettingsModal.vue'
 import CheatModal from './emulator/CheatModal.vue'
 import { useEmulatorDB } from './emulator/useEmulatorDB'
 import { useGameState } from './emulator/useGameState'
-import { useEmulatorSettings } from './emulator/useEmulatorSettings'
+import { PALETTES, type PaletteName, useEmulatorSettings } from './emulator/useEmulatorSettings'
 import { useCheats } from './emulator/useCheats'
 
 const vscode = acquireVsCodeApi()
@@ -99,6 +99,23 @@ function resetGame() {
 function applySettings() {
     if (!emu) return
     applySettingsToEmulator(emu)
+}
+
+// 调色板相关
+async function handleChangePalette(name: PaletteName) {
+    if (!emu) return
+    const config = PALETTES[name]
+    const res = await fetch(config.url)
+    const bin = await res.arrayBuffer()
+    const u8 = new Uint8Array(bin)
+    const palette: number[] = []
+    for (let i = 0; i < 64; i++) {
+        const r = u8[i * 3]!
+        const g = u8[i * 3 + 1]!
+        const b = u8[i * 3 + 2]!
+        palette.push(r << 16 | g << 8 | b | 0xFF000000)
+    }
+    emu.nes.setPalette(palette)
 }
 
 // 存档相关
@@ -471,9 +488,13 @@ onMounted(async() => {
       v-model:settings="settings"
       @close="showSettings = false"
       @update:settings="(val) => {
+        const oldPalette = settings.palette
         Object.assign(settings, val)
         applySettings()
         saveSettings(db!)
+        if (val.palette !== oldPalette) {
+          handleChangePalette(val.palette)
+        }
       }"
     />
 

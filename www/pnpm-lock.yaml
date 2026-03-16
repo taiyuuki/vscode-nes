@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@nesjs/native':
-        specifier: ^2.3.1
-        version: 2.3.1
+        specifier: ^2.5.1
+        version: 2.5.1
       js7z-tools:
         specifier: ^2.5.0
         version: 2.5.0
@@ -212,11 +212,11 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@nesjs/core@2.3.1':
-    resolution: {integrity: sha512-cduRI/HsvPKTR2gqF5uqlLHuAfTv6fH6q08+foozByR/Y1rQb7vK3uzTE6ufpLzPSvNP1IWL4cCggPRHmVqsvw==}
+  '@nesjs/core@2.5.1':
+    resolution: {integrity: sha512-N9VJsiBVuqtYY/5aTrhWZ4zXsuEsi+qWhuZ0Pz+DsEQV6PGiWyKLaRcRspxa2aPplWqjQuKBOl1rlXQxce0GlA==}
 
-  '@nesjs/native@2.3.1':
-    resolution: {integrity: sha512-S+MkdyWHq0kxsXYjC49mudituT1YmKzIXP6LZWkMsrigMuv4TxelugEkcfcsCR/sk1snA7l+HHiUpre7jmUbhA==}
+  '@nesjs/native@2.5.1':
+    resolution: {integrity: sha512-M5i3n/vI9Hk1rdKaxGVk1gliN2jVbMa4he/U3/BRQgCEwIJmf06Es9kmYADUtLXl0rW3NdpPqvSvnFUcdmO0Nw==}
 
   '@rolldown/pluginutils@1.0.0-beta.29':
     resolution: {integrity: sha512-NIJgOsMjbxAXvoGq/X0gD7VPMQ8j9g0BiDaNjVNVjvl+iKXxL3Jre0v31RmBYeLEmkbj2s02v8vFTbUXi5XS2Q==}
@@ -649,11 +649,11 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@nesjs/core@2.3.1': {}
+  '@nesjs/core@2.5.1': {}
 
-  '@nesjs/native@2.3.1':
+  '@nesjs/native@2.5.1':
     dependencies:
-      '@nesjs/core': 2.3.1
+      '@nesjs/core': 2.5.1
 
   '@rolldown/pluginutils@1.0.0-beta.29': {}
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import Modal from './Modal.vue'
+import { PALETTES, type PaletteName } from './useEmulatorSettings'
 
 interface EmulatorSettings {
     scale:         number
@@ -9,6 +10,7 @@ interface EmulatorSettings {
     volume:        number
     clip8px:       boolean
     notifications: boolean
+    palette:       PaletteName
 }
 
 interface Props { settings: EmulatorSettings }
@@ -96,6 +98,27 @@ function handleChange() {
             >
             <span>裁剪边框 (隐藏上下8像素)</span>
           </label>
+        </div>
+
+        <div class="setting-item">
+          <label
+            for="palette"
+            class="setting-label"
+          >调色板</label>
+          <select
+            id="palette"
+            v-model="localSettings.palette"
+            class="setting-select"
+            @change="handleChange"
+          >
+            <option
+              v-for="(config, name) in PALETTES"
+              :key="name"
+              :value="name"
+            >
+              {{ config.label }}
+            </option>
+          </select>
         </div>
       </div>
       
