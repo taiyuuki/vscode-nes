@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NESEmulator } from '@nesjs/native'
-import { type Ref, computed, onMounted, ref, useTemplateRef } from 'vue'
+import { type Ref, computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import { type ExtractedFilesMap, extract7z } from '../7z'
 import Dotting from './Dotting.vue'
 import GameControls from './emulator/GameControls.vue'
@@ -54,6 +54,7 @@ const isLoading = ref(false)
 const isDownloading = ref(false)
 const isExtracting = ref(false)
 const downloadingProgress = ref(0)
+let resumeAfterVisibilityRestore = false
 
 // 环形进度相关
 const ringRadius = 52
@@ -158,6 +159,54 @@ async function enableAudio() {
     }
 }
 
+async function pauseForHiddenWebview() {
+    if (!emu || !isPlaying.value) return
+
+    resumeAfterVisibilityRestore = !isPaused.value
+
+    try {
+        await emu.pause()
+    }
+    catch(err) {
+        console.warn('emu.pause failed while hiding webview', err)
+    }
+
+    const audioContext = emu.audioOutput?.getAudioContext?.()
+    if (audioContext?.state === 'running') {
+        try {
+            await audioContext.suspend()
+        }
+        catch(err) {
+            console.warn('audioContext.suspend failed while hiding webview', err)
+        }
+    }
+}
+
+async function resumeForVisibleWebview() {
+    if (!emu || !isPlaying.value) return
+
+    const shouldResume = resumeAfterVisibilityRestore && !isPaused.value
+    resumeAfterVisibilityRestore = false
+
+    if (!shouldResume) return
+
+    try {
+        await emu.resume()
+    }
+    catch(err) {
+        console.warn('emu.resume failed while restoring webview', err)
+    }
+}
+
+async function syncWebviewVisibility(visible: boolean) {
+    if (visible) {
+        await resumeForVisibleWebview()
+        return
+    }
+
+    await pauseForHiddenWebview()
+}
+
 async function onInteraction() {
     await enableAudio()
     window.removeEventListener('click', onInteraction)
@@ -168,6 +217,140 @@ async function onInteraction() {
 const downloader = { executor: () => {} }
 
 let abortController: AbortController | null = null
+const onDocumentVisibilityChange = () => {
+    void syncWebviewVisibility(!document.hidden)
+}
+
+const onWindowMessage = async(e: MessageEvent) => {
+    switch(e.data.type) {
+        case 'play':
+        {
+            let future: Promise<any>
+            future = fetch(e.data.url)
+            future.catch(err => {
+                console.error('加载ROM失败:', err)
+                notify('error', '文件加载失败，文件可能已不存在。')
+                isLoading.value = false
+            })
+            const data: Response = await future
+
+            const buffer = await data.arrayBuffer()
+            currentGame.value = e.data.label || 'Unknown Game'
+
+            future = loadROM(new Uint8Array(buffer), e.data.label, e.data.local ?? false)
+
+            await future
+
+            break
+        }
+            
+        case 'setController':
+            emu.setupKeyboadController(1, e.data.controller.p1)
+            emu.setupKeyboadController(2, e.data.controller.p2)
+            break
+            
+        case 'delete':
+            if (currentGame.value === e.data.label) {
+
+                // stopGame()
+                isLocalROM.value = false
+            }
+            break
+
+        case 'openROM':
+            isLoading.value = true
+                
+            if (emu && typeof emu.pause === 'function') {
+                try {
+                    await emu.pause()
+                }
+                catch(err) {
+
+                    console.warn('emu.pause failed', err)
+                }
+            }
+            isPlaying.value = false
+            isPaused.value = false
+            isDownloading.value = true
+            downloadingProgress.value = 0
+
+            const ctx = $cvs.value.getContext('2d')!
+            ctx.fillStyle = '#000000'
+            ctx.fillRect(0, 0, $cvs.value.width, $cvs.value.height)
+
+            let future: Promise<any>
+
+            if (abortController) {
+                abortController.abort()
+            }
+
+            abortController = new AbortController()
+
+            future = fetch(`https://taiyuuki.github.io/nes-roms/roms/${e.data.rom}`, { signal: abortController.signal })
+
+            future.catch(err => {
+                console.error('下载ROM失败:', err)
+                notify('error', '下载ROM失败，网络不稳定或地址已失效。')
+                isLoading.value = false
+            }).finally(() => {
+                abortController = null
+            })
+
+            const response: Response = await future
+
+            const contentLength = response.headers.get('Content-Length')
+            const total = contentLength ? Number.parseInt(contentLength, 10) : 0
+            let loaded = 0
+            const reader = response.body!.getReader()
+            const chunks: Uint8Array[] = []
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                if (value) {
+                    chunks.push(value)
+                    loaded += value.length
+                    if (total) {
+                        downloadingProgress.value = Math.floor(loaded / total * 100)
+                    }
+                }
+            }
+
+            isDownloading.value = false
+
+            // const buffer = await response.arrayBuffer()
+            const buffer = new Uint8Array(loaded)
+            let position = 0
+            for (const chunk of chunks) {
+                buffer.set(chunk, position)
+                position += chunk.length
+            }
+
+            isExtracting.value = true
+            future = extract7z(buffer)
+            future.catch(() => {
+                console.error('解压7z失败')
+                notify('error', '解压7z失败，文件可能已损坏。')
+                isLoading.value = false
+            })
+            const zipFiles: ExtractedFilesMap = await future
+            isExtracting.value = false
+            isLoading.value = false
+
+            for (const filename in zipFiles) {
+                if (filename.endsWith('.nes')) {
+                    const data = zipFiles[filename]!
+                    future = loadROM(data, filename, false)
+                    await future
+
+                    return
+                }
+            }
+            break
+        case 'changeViewState':
+            await syncWebviewVisibility(Boolean(e.data.visible))
+            break
+    }
+}
 
 async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
   
@@ -219,6 +402,10 @@ async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
     })
 
     await future
+
+    if (document.hidden) {
+        await pauseForHiddenWebview()
+    }
 }
 
 onMounted(async() => {
@@ -241,142 +428,9 @@ onMounted(async() => {
         clip8px:         settings.clip8px,
     })
     
-    // 监听VSCode消息
-    window.addEventListener('message', async e => {
-        switch(e.data.type) {
-            case 'play':
-            {
-                let future: Promise<any>
-                future = fetch(e.data.url)
-                future.catch(err => {
-                    console.error('加载ROM失败:', err)
-                    notify('error', '文件加载失败，文件可能已不存在。')
-                    isLoading.value = false
-                })
-                const data: Response = await future
-
-                const buffer = await data.arrayBuffer()
-                currentGame.value = e.data.label || 'Unknown Game'
-
-                future = loadROM(new Uint8Array(buffer), e.data.label, e.data.local ?? false)
-
-                await future
-
-                break
-            }
-            
-            case 'setController':
-                emu.setupKeyboadController(1, e.data.controller.p1)
-                emu.setupKeyboadController(2, e.data.controller.p2)
-                break
-            
-            case 'delete':
-                if (currentGame.value === e.data.label) {
-
-                    // stopGame()
-                    isLocalROM.value = false
-                }
-                break
-
-            case 'openROM':
-                isLoading.value = true
-                
-                if (emu && typeof emu.pause === 'function') {
-                    try {
-                        await emu.pause()
-                    }
-                    catch(err) {
-
-                        console.warn('emu.pause failed', err)
-                    }
-                }
-                isPlaying.value = false
-                isPaused.value = false
-                isDownloading.value = true
-                downloadingProgress.value = 0
-
-                const ctx = $cvs.value.getContext('2d')!
-                ctx.fillStyle = '#000000'
-                ctx.fillRect(0, 0, $cvs.value.width, $cvs.value.height)
-
-                let future: Promise<any>
-
-                if (abortController) {
-                    abortController.abort()
-                }
-
-                abortController = new AbortController()
-
-                future = fetch(`https://taiyuuki.github.io/nes-roms/roms/${e.data.rom}`, { signal: abortController.signal })
-
-                future.catch(err => {
-                    console.error('下载ROM失败:', err)
-                    notify('error', '下载ROM失败，网络不稳定或地址已失效。')
-                    isLoading.value = false
-                }).finally(() => {
-                    abortController = null
-                })
-
-                const response: Response = await future
-
-                const contentLength = response.headers.get('Content-Length')
-                const total = contentLength ? Number.parseInt(contentLength, 10) : 0
-                let loaded = 0
-                const reader = response.body!.getReader()
-                const chunks: Uint8Array[] = []
-                while (true) {
-                    const { done, value } = await reader.read()
-                    if (done) break
-                    if (value) {
-                        chunks.push(value)
-                        loaded += value.length
-                        if (total) {
-                            downloadingProgress.value = Math.floor(loaded / total * 100)
-                        }
-                    }
-                }
-
-                isDownloading.value = false
-
-                // const buffer = await response.arrayBuffer()
-                const buffer = new Uint8Array(loaded)
-                let position = 0
-                for (const chunk of chunks) {
-                    buffer.set(chunk, position)
-                    position += chunk.length
-                }
-
-                isExtracting.value = true
-                future = extract7z(buffer)
-                future.catch(() => {
-                    console.error('解压7z失败')
-                    notify('error', '解压7z失败，文件可能已损坏。')
-                    isLoading.value = false
-                })
-                const zipFiles: ExtractedFilesMap = await future
-                isExtracting.value = false
-                isLoading.value = false
-
-                for (const filename in zipFiles) {
-                    if (filename.endsWith('.nes')) {
-                        const data = zipFiles[filename]!
-                        future = loadROM(data, filename, false)
-                        await future
-
-                        return
-                    }
-                }
-                break
-            case 'changeViewState':
-                if (e.data.visible && !isPaused.value) {
-                    emu.resume()
-                }
-                else if (!isPaused.value) {
-                    emu.pause()
-                }
-                break
-        }
-    })
+    // VS Code 的 viewState 消息并不总是足够及时，document.visibilitychange 作为兜底。
+    window.addEventListener('message', onWindowMessage)
+    document.addEventListener('visibilitychange', onDocumentVisibilityChange)
 
     // 用户交互音频启用
     window.addEventListener('click', onInteraction)
@@ -384,6 +438,18 @@ onMounted(async() => {
     window.addEventListener('touchstart', onInteraction)
     
     vscode.postMessage({ type: 'ready' })
+})
+
+onBeforeUnmount(() => {
+    window.removeEventListener('message', onWindowMessage)
+    document.removeEventListener('visibilitychange', onDocumentVisibilityChange)
+    window.removeEventListener('click', onInteraction)
+    window.removeEventListener('keydown', onInteraction)
+    window.removeEventListener('touchstart', onInteraction)
+    abortController?.abort()
+    if (emu) {
+        emu.stop()
+    }
 })
 </script>
 
