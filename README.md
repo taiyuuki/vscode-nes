@@ -3,7 +3,7 @@
 # 红白机模拟器
 
 <a href="https://marketplace.visualstudio.com/items?itemName=taiyuuki.vscode-nes">
-<img alt="Marketplace Version" src="https://img.shields.io/visual-studio-marketplace/v/taiyuuki.vscode-nes?color=%0eb0c9&label=Marketplace&logo=visual%20studio%20code"></a>
+<img alt="Marketplace Version" src="https://img.shields.io/github/package-json/v/taiyuuki/vscode-nes?label=Marketplace&labelColor=%23FFFFFF&color=%23962538"></a>
 
  <a href="https://github.com/taiyuuki/vscode-nes"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/taiyuuki/vscode-nes?style=social"></a>
 
