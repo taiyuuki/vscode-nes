@@ -201,6 +201,7 @@ async function resumeForVisibleWebview() {
 async function syncWebviewVisibility(visible: boolean) {
     if (visible) {
         await resumeForVisibleWebview()
+
         return
     }
 

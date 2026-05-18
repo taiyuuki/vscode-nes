@@ -92,4 +92,4 @@ VS Code版本要求： >= 1.75.0
 
 ## License
 
-MIT Copyright (c) 2023-2025 Taiyuuki
+MIT Copyright (c) 2023-2026 Taiyuuki

@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@nesjs/native':
-        specifier: ^2.6.0
-        version: 2.6.3
+        specifier: ^2.6.4
+        version: 2.6.4
       js7z-tools:
         specifier: ^2.5.0
         version: 2.5.0
@@ -84,11 +84,11 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
-  '@nesjs/core@2.6.3':
-    resolution: {integrity: sha512-iqyz1G2dPBrpugoHgozx2A1UEbSIfrfPL0FPkk1wyNo2GK04Go842o+vCHpXNUY1nru7PSzeDbDcU48OVXt4zg==}
+  '@nesjs/core@2.6.4':
+    resolution: {integrity: sha512-AlmE+FYv56qPzeWnljpaXoBRLFG43OPdtC4eau6JbnhEdz9nf6tqZF0gfzMa0apCxfx/lAi3DyyMaNhJT2Nhjw==}
 
-  '@nesjs/native@2.6.3':
-    resolution: {integrity: sha512-dvCvCbfXeQUq/SUf05hz89Nc9NTvRnX76dn9E/kmfg4DunmMqm61nPGDJX+khCmDN7adKL2j2d2MjFF9TQ93qA==}
+  '@nesjs/native@2.6.4':
+    resolution: {integrity: sha512-DbBNc94m3vqQmWjK3EVAmc9CPjpGHQjgC8hu40umM/rg/SapBTsVjDgxc5p0pWLmQbv6Fzd5Wn0HpCmouc7QUA==}
 
   '@oxc-project/types@0.124.0':
     resolution: {integrity: sha512-VBFWMTBvHxS11Z5Lvlr3IWgrwhMTXV+Md+EQF0Xf60+wAdsGFTBx7X7K/hP4pi8N7dcm1RvcHwDxZ16Qx8keUg==}
@@ -538,11 +538,11 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@nesjs/core@2.6.3': {}
+  '@nesjs/core@2.6.4': {}
 
-  '@nesjs/native@2.6.3':
+  '@nesjs/native@2.6.4':
     dependencies:
-      '@nesjs/core': 2.6.3
+      '@nesjs/core': 2.6.4
 
   '@oxc-project/types@0.124.0': {}
 

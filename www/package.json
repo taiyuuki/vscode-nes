@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@nesjs/native": "^2.6.2",
+    "@nesjs/native": "^2.6.4",
     "js7z-tools": "^2.5.0",
     "vue": "^3.5.32"
   },
