@@ -11,10 +11,12 @@ import { useEmulatorDB } from './emulator/useEmulatorDB'
 import { useGameState } from './emulator/useGameState'
 import { PALETTES, type PaletteName, useEmulatorSettings } from './emulator/useEmulatorSettings'
 import { useCheats } from './emulator/useCheats'
+import { useNetcode } from './emulator/useNetcode'
 
 const vscode = acquireVsCodeApi()
 
 let emu: NESEmulator
+let uninstallNetcode: (() => void) | null = null
 const $cvs = useTemplateRef('cvs') as Ref<HTMLCanvasElement>
 
 // 使用组合式函数管理状态
@@ -48,6 +50,25 @@ const {
     toggleCheat,
     removeCheat,
 } = useCheats(vscode)
+
+const {
+    netStatus,
+    localPlayer: netLocalPlayer,
+    statusText: netStatusText,
+    attachEmulator: netAttachEmulator,
+    disconnect: netDisconnect,
+    hostSendSaveState: netHostSendSaveState,
+    hostStartGame: netHostStartGame,
+    install: netInstall,
+} = useNetcode(vscode)
+
+// 联机状态文字（含玩家号）— 在状态条中展示
+const netStatusWithPlayer = computed(() => {
+    if (netStatus.value === 'offline') return ''
+    const p = netLocalPlayer.value ? ` [你=P${netLocalPlayer.value}]` : ''
+
+    return `${netStatusText.value}${p}`
+})
 
 const showSaveMenu = ref(false)
 const isLoading = ref(false)
@@ -353,8 +374,16 @@ const onWindowMessage = async(e: MessageEvent) => {
     }
 }
 
+// 联机：收到 host 推送的 ROM 数据时，自动加载（guest 无需手动找同一 ROM）
+const onNetRomReceived = async(e: Event) => {
+    const { name, rom } = (e as CustomEvent).detail
+    if (rom instanceof Uint8Array) {
+        notify('info', `联机：正在加载 ${name}…`)
+        await loadROM(rom, name, false)
+    }
+}
+
 async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
-  
     currentGame.value = label || 'Unknown Game'
     downloader.executor = () => {
         vscode.postMessage({
@@ -428,6 +457,13 @@ onMounted(async() => {
         enableCheat:     true,
         clip8px:         settings.clip8px,
     })
+
+    // 联机：把模拟器实例交给 useNetcode，并注册消息监听
+    netAttachEmulator(emu)
+    uninstallNetcode = netInstall()
+
+    // 联机：收到 host 推送的 ROM 数据时，自动加载（guest 无需手动找同一 ROM）
+    window.addEventListener('net-rom-received', onNetRomReceived as EventListener)
     
     // VS Code 的 viewState 消息并不总是足够及时，document.visibilitychange 作为兜底。
     window.addEventListener('message', onWindowMessage)
@@ -447,7 +483,12 @@ onBeforeUnmount(() => {
     window.removeEventListener('click', onInteraction)
     window.removeEventListener('keydown', onInteraction)
     window.removeEventListener('touchstart', onInteraction)
+    window.removeEventListener('net-rom-received', onNetRomReceived as EventListener)
     abortController?.abort()
+    if (uninstallNetcode) {
+        uninstallNetcode()
+        uninstallNetcode = null
+    }
     if (emu) {
         emu.stop()
     }
@@ -523,7 +564,37 @@ onBeforeUnmount(() => {
         ref="cvs"
         class="game-canvas"
       />
-      
+
+      <!-- 联机状态条 -->
+      <div
+        v-if="netStatus !== 'offline'"
+        class="net-banner"
+        :class="`net-banner--${netStatus}`"
+      >
+        <span class="net-banner__dot" />
+        <span class="net-banner__text">{{ netStatusWithPlayer }}</span>
+        <template v-if="netStatus === 'syncing'">
+          <button
+            class="net-banner__btn"
+            @click="netHostSendSaveState"
+          >
+            同步存档
+          </button>
+          <button
+            class="net-banner__btn net-banner__btn--primary"
+            @click="netHostStartGame"
+          >
+            开始游戏
+          </button>
+        </template>
+        <button
+          class="net-banner__btn"
+          @click="netDisconnect"
+        >
+          断开
+        </button>
+      </div>
+
       <!-- 控制面板 -->
       <GameControls
         v-if="isPlaying"
@@ -655,6 +726,58 @@ onBeforeUnmount(() => {
 .download-percent {
     color: #fff;
     font-size: 0.95rem;
+}
+
+/* 联机状态条 */
+.net-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-radius: var(--border-radius, 8px);
+    font-size: 0.9rem;
+    border: 1px solid var(--vscode-panel-border);
+    background: var(--vscode-editorWidget-background);
+    color: var(--vscode-foreground);
+    width: fit-content;
+}
+.net-banner__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--vscode-disabledForeground);
+    flex-shrink: 0;
+}
+.net-banner__text {
+    flex: 1;
+}
+.net-banner--connecting .net-banner__dot,
+.net-banner--syncing .net-banner__dot {
+    background: #f5a623;
+    box-shadow: 0 0 6px #f5a623;
+}
+.net-banner--online .net-banner__dot {
+    background: #4ec07b;
+    box-shadow: 0 0 6px #4ec07b;
+}
+.net-banner__btn {
+    border: 1px solid var(--vscode-button-border, transparent);
+    background: var(--vscode-button-secondaryBackground, transparent);
+    color: var(--vscode-button-secondaryForeground);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.net-banner__btn:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+.net-banner__btn--primary {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+.net-banner__btn--primary:hover {
+    background: var(--vscode-button-hoverBackground);
 }
 </style>
 
