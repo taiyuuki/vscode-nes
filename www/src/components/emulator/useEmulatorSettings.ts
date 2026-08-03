@@ -1,5 +1,5 @@
 import { reactive, ref } from 'vue'
-import type { NESEmulator } from '@nesjs/native'
+import type { NESEmulator } from './nesjs'
 
 // 调色板配置
 export const PALETTES = {

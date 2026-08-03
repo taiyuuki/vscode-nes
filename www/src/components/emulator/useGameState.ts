@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import type { NESEmulator } from '@nesjs/native'
+import type { NESEmulator } from './nesjs'
 import { useEmulatorSettings } from './useEmulatorSettings'
 
 interface SaveState {

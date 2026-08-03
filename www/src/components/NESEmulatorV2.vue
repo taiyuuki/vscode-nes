@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { NESEmulator } from '@nesjs/native'
 import { type Ref, computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import { type ExtractedFilesMap, extract7z } from '../7z'
+import { NESEmulator } from './emulator/nesjs'
 import Dotting from './Dotting.vue'
 import GameControls from './emulator/GameControls.vue'
 import SaveStateModal from './emulator/SaveStateModal.vue'
