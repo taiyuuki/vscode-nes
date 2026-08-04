@@ -1,3 +1,6 @@
+packages:
+  - 'www'
+
 allowBuilds:
   '@vscode/vsce-sign': true
   esbuild: true
