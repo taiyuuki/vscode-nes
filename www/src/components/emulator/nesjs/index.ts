@@ -207,8 +207,10 @@ class NESEmulator {
     /**
      * 启用 netcode 模式
      *
-     * 进入联机后会清除远程玩家的键盘映射，避免本地键盘事件
-     * 写入远程手柄（远程手柄只接受 setInput 注入的输入）。
+     * 进入联机后：
+     *   1. 清除远程玩家的键盘映射，避免本地键盘事件写入远程手柄（远程手柄只接受 setInput 注入）
+     *   2. 本地玩家统一使用 P1 的按键配置——这样无论你是 1P 还是 2P，
+     *      都用自己熟悉的 P1 按键操作本地角色
      *
      * @param remotePlayer 远程玩家号（接收对端输入注入的手柄）
      * @param hooks        由 useNetcode 提供的帧屏障与发送回调
@@ -219,14 +221,22 @@ class NESEmulator {
         this.netcodeLocalPlayer = remotePlayer === 1 ? 2 : 1
         this.netcodeHooks = hooks
 
-        // 备份并清除远程玩家的键盘映射，防止本地按键污染远程手柄
-        if (remotePlayer === 1) {
-            this.savedP1KeyMap = this.controller.p1KeyMap
-            this.controller.setupKeyboadController(1, {})
+        // 备份当前两个玩家的键盘映射，退出联机时恢复
+        this.savedP1KeyMap = { ...this.controller.p1KeyMap }
+        this.savedP2KeyMap = { ...this.controller.p2KeyMap }
+
+        const localPlayer = this.netcodeLocalPlayer
+
+        if (localPlayer === 1) {
+            // host（本地 P1）：清除远程 P2 的键盘映射，P1 保持不变
+            this.controller.setupKeyboadController(1, this.savedP1KeyMap)
+            this.controller.setupKeyboadController(2, {})
         }
         else {
-            this.savedP2KeyMap = this.controller.p2KeyMap
-            this.controller.setupKeyboadController(2, {})
+            // guest（本地 P2）：清除远程 P1 的键盘映射，
+            // 并把本地 P2 的按键映射设为 P1 的配置——让用户用 P1 按键操作 P2
+            this.controller.setupKeyboadController(1, {})
+            this.controller.setupKeyboadController(2, this.savedP1KeyMap)
         }
     }
 
@@ -240,12 +250,12 @@ class NESEmulator {
         // 恢复键盘映射
         if (this.savedP1KeyMap) {
             this.controller.setupKeyboadController(1, this.savedP1KeyMap)
-            this.savedP1KeyMap = null
         }
         if (this.savedP2KeyMap) {
             this.controller.setupKeyboadController(2, this.savedP2KeyMap)
-            this.savedP2KeyMap = null
         }
+        this.savedP1KeyMap = null
+        this.savedP2KeyMap = null
     }
 
     private run() {

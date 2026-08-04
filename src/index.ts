@@ -309,11 +309,11 @@ function setupNetcode(context: vscode.ExtensionContext): void {
     )
 
     // ---- webview → 扩展端：联机消息桥 ----
+    // 约定：创建者固定 1P，加入者固定 2P
     panelManager.registerMessageHandler('net-create-room', async data => {
-        const localPlayer: 1 | 2 = data.localPlayer === 2 ? 2 : 1
         try {
-            const port = await netManager.createRoom(localPlayer, data.port || 0)
-            panelManager.postMessage({ type: 'net-room-created', port, localPlayer })
+            const port = await netManager.createRoom(1, data.port || 0)
+            panelManager.postMessage({ type: 'net-room-created', port, localPlayer: 1 })
             vscode.window.showInformationMessage(`房间已创建，端口 ${port}，等待对手加入…`)
         }
         catch(err) {
@@ -322,10 +322,9 @@ function setupNetcode(context: vscode.ExtensionContext): void {
     })
 
     panelManager.registerMessageHandler('net-join-room', async data => {
-        const localPlayer: 1 | 2 = data.localPlayer === 2 ? 2 : 1
         try {
-            await netManager.joinRoom(data.host, data.port, localPlayer)
-            panelManager.postMessage({ type: 'net-connected', localPlayer, peerPlayer: localPlayer === 1 ? 2 : 1 })
+            await netManager.joinRoom(data.host, data.port, 2)
+            panelManager.postMessage({ type: 'net-connected', localPlayer: 2, peerPlayer: 1 })
             vscode.window.showInformationMessage(`已连接到 ${data.host}:${data.port}`)
         }
         catch(err) {
@@ -355,17 +354,9 @@ function setupNetcode(context: vscode.ExtensionContext): void {
     })
 
     // ---- 命令：创建房间 / 加入房间 / 离开房间 ----
+    // 约定：创建者固定为 1P，加入者固定为 2P
     context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.createRoom', async() => {
         if (!ensurePanelOpen()) return
-
-        const playerPick = await vscode.window.showQuickPick(
-            [
-                { label: '玩家 1 (P1)', description: '本地控制 1P', value: 1 as 1 | 2 },
-                { label: '玩家 2 (P2)', description: '本地控制 2P', value: 2 as 1 | 2 },
-            ],
-            { placeHolder: '选择你的本地玩家号' },
-        )
-        if (!playerPick) return
 
         const portInput = await vscode.window.showInputBox({
             prompt:        '监听端口（留空或 0 = 随机端口）',
@@ -381,9 +372,9 @@ function setupNetcode(context: vscode.ExtensionContext): void {
         const port = portInput ? Number(portInput) : 0
 
         try {
-            const actualPort = await netManager.createRoom(playerPick.value, port)
-            panelManager.postMessage({ type: 'net-room-created', port: actualPort, localPlayer: playerPick.value })
-            vscode.window.showInformationMessage(`房间已创建！端口 ${actualPort}，请把 IP:端口告诉对手。`)
+            const actualPort = await netManager.createRoom(1, port)
+            panelManager.postMessage({ type: 'net-room-created', port: actualPort, localPlayer: 1 })
+            vscode.window.showInformationMessage(`房间已创建！你是 1P，端口 ${actualPort}，请把 IP:端口告诉对手。`)
         }
         catch(err) {
             vscode.window.showErrorMessage(`创建房间失败: ${(err as Error).message}`)
@@ -392,15 +383,6 @@ function setupNetcode(context: vscode.ExtensionContext): void {
 
     context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.joinRoom', async() => {
         if (!ensurePanelOpen()) return
-
-        const playerPick = await vscode.window.showQuickPick(
-            [
-                { label: '玩家 1 (P1)', description: '本地控制 1P', value: 1 as 1 | 2 },
-                { label: '玩家 2 (P2)', description: '本地控制 2P', value: 2 as 1 | 2 },
-            ],
-            { placeHolder: '选择你的本地玩家号' },
-        )
-        if (!playerPick) return
 
         const addr = await vscode.window.showInputBox({
             prompt:        '输入对手的地址（host:port）',
@@ -420,9 +402,9 @@ function setupNetcode(context: vscode.ExtensionContext): void {
         const port = Number(portStr)
 
         try {
-            await netManager.joinRoom(host, port, playerPick.value)
-            panelManager.postMessage({ type: 'net-connected', localPlayer: playerPick.value, peerPlayer: playerPick.value === 1 ? 2 : 1 })
-            vscode.window.showInformationMessage(`已连接到 ${host}:${port}`)
+            await netManager.joinRoom(host, port, 2)
+            panelManager.postMessage({ type: 'net-connected', localPlayer: 2, peerPlayer: 1 })
+            vscode.window.showInformationMessage(`已连接到 ${host}:${port}，你是 2P`)
         }
         catch(err) {
             vscode.window.showErrorMessage(`加入房间失败: ${(err as Error).message}`)
