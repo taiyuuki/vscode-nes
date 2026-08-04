@@ -3,5 +3,4 @@ node_modules
 dist
 *.vsix
 res/webview
-nesjs
 .zcode

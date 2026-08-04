@@ -11,11 +11,16 @@ const FRAME_BARRIER_TIMEOUT = 3000
  * 联机（局域网双人 lockstep）组合式函数
  *
  * 职责：
- *   1. 维护远程输入缓冲 + 帧屏障（frame barrier），保证本地第 N 帧严格在对端第 N 帧输入到达后才模拟
+ *   1. 维护远程输入顺序队列 + 帧屏障（frame barrier），保证本地每帧严格在对端对应输入到达后才模拟
  *   2. 监听扩展端 postMessage 的 net-* 消息，分发输入 / 存档 / 控制消息
  *   3. 在连接建立后驱动 NESEmulator 进入 netcode 主循环
  *
  * 不直接操作 TCP —— 网络全在扩展端（src/net），webview 只经 postMessage 中转。
+ *
+ * 帧屏障采用"顺序队列"模型而非"按 frame 号精确匹配"：
+ *   对端的输入按到达顺序入队，本地按推进顺序出队。
+ *   这样两端 frame 号即使有初始偏移也能正确配对（第 N 个收到的输入 = 第 N 帧的输入），
+ *   彻底避免因 frame 号错位导致的死锁。
  */
 export function useNetcode(vscode: any) {
     const netStatus: Ref<NetStatus> = ref('offline')
@@ -28,14 +33,14 @@ export function useNetcode(vscode: any) {
 
     let emu: NESEmulator | null = null
 
-    // 远程输入缓冲：frame → input（提前到达、尚未被 barrier 取走的帧）
-    const remoteInputs = new Map<number, number>()
+    // 远程输入顺序队列：对端发来的输入按到达顺序排队，本地按帧出队消费
+    const remoteInputQueue: number[] = []
 
-    // 正在等待的帧：frame → resolver
-    const pendingFrames = new Map<number, (input: number) => void>()
+    // 正在等待输入的 resolver（最多一个，因为 mainLoopNetcode 逐帧串行）
+    let pendingResolver: ((input: number) => void) | null = null
 
-    // 帧超时定时器：frame → timer
-    const frameTimers = new Map<number, ReturnType<typeof setTimeout>>()
+    // 帧超时定时器
+    let barrierTimer: ReturnType<typeof setTimeout> | null = null
 
     // 防止重复进入 netcode 循环
     let netcodeActive = false
@@ -44,44 +49,45 @@ export function useNetcode(vscode: any) {
         emu = instance
     }
 
-    // ============ 帧屏障 ============
+    // ============ 帧屏障（顺序队列模型） ============
 
     /**
-     * 等待指定帧的远程输入到达。
-     * 如果输入已提前缓存，立即返回；否则挂起 Promise 直到对应输入到达或超时。
+     * 等待下一个远程输入。
+     * 如果队列里已有缓存的输入，立即出队返回；否则挂起直到输入到达或超时。
+     * frame 参数仅用于日志，不参与匹配。
      */
     function waitForRemoteInput(frame: number): Promise<number> {
-        const cached = remoteInputs.get(frame)
-        if (cached !== undefined) {
-            remoteInputs.delete(frame)
 
-            return Promise.resolve(cached)
+        // 队列里有输入，直接消费
+        if (remoteInputQueue.length > 0) {
+            return Promise.resolve(remoteInputQueue.shift()!)
         }
 
         return new Promise<number>((resolve, reject) => {
-            const timer = setTimeout(() => {
-                pendingFrames.delete(frame)
-                frameTimers.delete(frame)
+            barrierTimer = setTimeout(() => {
+                pendingResolver = null
+                barrierTimer = null
                 reject(new Error(`frame ${frame} 远程输入等待超时`))
             }, FRAME_BARRIER_TIMEOUT)
-            frameTimers.set(frame, timer)
-            pendingFrames.set(frame, input => {
-                clearTimeout(timer)
-                frameTimers.delete(frame)
+            pendingResolver = input => {
+                if (barrierTimer) {
+                    clearTimeout(barrierTimer)
+                    barrierTimer = null
+                }
                 resolve(input)
-            })
+            }
         })
     }
 
-    /** 远程输入到达时调用：取走等待中的 resolver，或缓存 */
-    function onRemoteInput(frame: number, input: number): void {
-        const resolver = pendingFrames.get(frame)
-        if (resolver) {
-            pendingFrames.delete(frame)
+    /** 远程输入到达时调用：取走等待中的 resolver，或入队缓存 */
+    function onRemoteInput(_frame: number, input: number): void {
+        if (pendingResolver) {
+            const resolver = pendingResolver
+            pendingResolver = null
             resolver(input)
         }
         else {
-            remoteInputs.set(frame, input)
+            remoteInputQueue.push(input)
         }
     }
 
@@ -183,12 +189,16 @@ export function useNetcode(vscode: any) {
     // ============ 握手与同步 ============
 
     /**
-     * 控制码：0=READY, 1=START, 2=RESET, 3=DISCONNECT
+     * 控制码：0=READY, 1=START, 2=RESET, 3=DISCONNECT, 4=PAUSE, 5=RESUME
      *
      * 握手流程：
      *   guest 加载存档 → 发 READY(0)
      *   host 收到 READY → UI 可点"开始游戏"，发 START(1)
      *   双方收到 START → 进入 netcode 主循环
+     *
+     * 暂停同步：
+     *   任一方暂停 → 发 PAUSE(4)，对方收到后也暂停（停止 runFrame，但仍响应输入同步）
+     *   任一方恢复 → 发 RESUME(5)，对方收到后恢复 lockstep 循环
      */
     function onControl(code: number): void {
         if (code === 0) {
@@ -210,6 +220,25 @@ export function useNetcode(vscode: any) {
         }
         else if (code === 3) {
             teardown('对手已断开')
+        }
+        else if (code === 4) {
+
+            // PAUSE：对端暂停，本地也暂停（lockstep 循环检查 status 会退出）
+            if (netcodeActive && emu) {
+                void emu.pause().then(() => {
+                    netStatus.value = 'syncing'
+                    statusText.value = '对手已暂停'
+                })
+            }
+        }
+        else if (code === 5) {
+
+            // RESUME：对端恢复，本地也恢复
+            if (netcodeActive && emu) {
+                void emu.resume()
+                netStatus.value = 'online'
+                statusText.value = '联机进行中'
+            }
         }
     }
 
@@ -243,6 +272,7 @@ export function useNetcode(vscode: any) {
     async function onRemoteSave(saveState: Uint8Array): Promise<void> {
         if (!emu) return
         if (!emu.romData) {
+
             // guest 尚未加载同一 ROM，存档无法应用
             // 提示用户先加载相同游戏；或由 host 单独发送 ROM（见 onRemoteRom）
             statusText.value = '请先加载相同游戏，再同步状态'
@@ -251,6 +281,7 @@ export function useNetcode(vscode: any) {
             return
         }
         try {
+
             // 暂停单机循环，避免加载存档后 frameCount 继续前进导致两端失步
             await emu.pause()
             emu.loadState(saveState)
@@ -286,11 +317,13 @@ export function useNetcode(vscode: any) {
         netStatus.value = 'online'
         statusText.value = '联机进行中'
 
-        // 清空缓冲，从当前帧开始
-        remoteInputs.clear()
-        pendingFrames.clear()
-        frameTimers.forEach(t => clearTimeout(t))
-        frameTimers.clear()
+        // 清空输入队列与等待中的 barrier
+        remoteInputQueue.length = 0
+        if (barrierTimer) {
+            clearTimeout(barrierTimer)
+            barrierTimer = null
+        }
+        pendingResolver = null
 
         emu.enableNetcode(remotePlayer.value, {
             waitForRemoteInput,
@@ -305,11 +338,16 @@ export function useNetcode(vscode: any) {
         if (emu) {
             emu.disableNetcode()
         }
-        remoteInputs.clear()
-        pendingFrames.forEach(r => r(0))
-        pendingFrames.clear()
-        frameTimers.forEach(t => clearTimeout(t))
-        frameTimers.clear()
+        remoteInputQueue.length = 0
+        if (pendingResolver) {
+            const r = pendingResolver
+            pendingResolver = null
+            r(0)
+        }
+        if (barrierTimer) {
+            clearTimeout(barrierTimer)
+            barrierTimer = null
+        }
 
         netStatus.value = 'offline'
         statusText.value = reason
@@ -331,6 +369,34 @@ export function useNetcode(vscode: any) {
         startNetcodeLoop()
     }
 
+    /**
+     * 联机暂停：本地暂停并发 PAUSE 给对端，对端收到后也会暂停。
+     * 由 UI 暂停按钮调用（非游戏内 START 键）。
+     */
+    async function pause(): Promise<void> {
+        if (!netcodeActive) return
+        vscode.postMessage({ type: 'net-send', kind: 'control', code: 4 })
+        if (emu) {
+            await emu.pause()
+        }
+        netStatus.value = 'syncing'
+        statusText.value = '已暂停（等待对手）'
+    }
+
+    /**
+     * 联机恢复：本地恢复并发 RESUME 给对端，对端收到后也会恢复。
+     * 由 UI 恢复按钮调用。
+     */
+    async function resume(): Promise<void> {
+        if (!netcodeActive) return
+        vscode.postMessage({ type: 'net-send', kind: 'control', code: 5 })
+        if (emu) {
+            await emu.resume()
+        }
+        netStatus.value = 'online'
+        statusText.value = '联机进行中'
+    }
+
     function install(): () => void {
         window.addEventListener('message', onMessage)
 
@@ -346,6 +412,8 @@ export function useNetcode(vscode: any) {
         disconnect,
         hostSendSaveState,
         hostStartGame,
+        pause,
+        resume,
         install,
     }
 }

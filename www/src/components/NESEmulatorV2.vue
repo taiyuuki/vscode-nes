@@ -59,6 +59,8 @@ const {
     disconnect: netDisconnect,
     hostSendSaveState: netHostSendSaveState,
     hostStartGame: netHostStartGame,
+    pause: netPause,
+    resume: netResume,
     install: netInstall,
 } = useNetcode(vscode)
 
@@ -95,9 +97,23 @@ const loadingLabel = computed(() => {
 })
 
 // 游戏控制
-function togglePlayPause() {
+async function togglePlayPause() {
     if (!emu) return
-    
+
+    // 联机模式下，暂停/恢复需要两端同步
+    if (netStatus.value === 'online' || netStatus.value === 'syncing') {
+        if (isPaused.value) {
+            await netResume()
+            isPaused.value = false
+        }
+        else {
+            await netPause()
+            isPaused.value = true
+        }
+
+        return
+    }
+
     if (isPaused.value) {
         emu.resume()
         isPaused.value = false
@@ -185,6 +201,22 @@ async function pauseForHiddenWebview() {
 
     resumeAfterVisibilityRestore = !isPaused.value
 
+    // 联机模式下不暂停模拟器（lockstep 循环已由 setTimeout 节流，
+    // 隐藏面板不会导致暴走），只挂起音频，避免对联机同步造成干扰
+    if (netStatus.value === 'online' || netStatus.value === 'syncing') {
+        const audioContext = emu.audioOutput?.getAudioContext?.()
+        if (audioContext?.state === 'running') {
+            try {
+                await audioContext.suspend()
+            }
+            catch(err) {
+                console.warn('audioContext.suspend failed while hiding webview', err)
+            }
+        }
+
+        return
+    }
+
     try {
         await emu.pause()
     }
@@ -210,6 +242,22 @@ async function resumeForVisibleWebview() {
     resumeAfterVisibilityRestore = false
 
     if (!shouldResume) return
+
+    // 联机模式下，可见性恢复时模拟器并未暂停（见 pauseForHiddenWebview），
+    // 只需恢复音频
+    if (netStatus.value === 'online' || netStatus.value === 'syncing') {
+        const audioContext = emu.audioOutput?.getAudioContext?.()
+        if (audioContext?.state === 'suspended') {
+            try {
+                await audioContext.resume()
+            }
+            catch(err) {
+                console.warn('audioContext.resume failed while restoring webview', err)
+            }
+        }
+
+        return
+    }
 
     try {
         await emu.resume()

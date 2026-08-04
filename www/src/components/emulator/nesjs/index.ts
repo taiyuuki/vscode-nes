@@ -124,47 +124,67 @@ class NESEmulator {
     /**
      * Netcode 主循环（lockstep）
      *
-     * 与单机 mainLoop 的关键区别：
-     *   - 不按 wall-clock 追赶历史帧，而是严格按 frameCount 逐帧推进
-     *   - 每帧先等待对端该帧输入到达（barrier），再注入并 runFrame
-     *   - 用 requestAnimationFrame 控制帧节奏上限，避免空转
+     * 采用与单机 mainLoop 相同的 rAF + deltaTime 累积框架，保证帧率在任何
+     * 刷新率显示器下都稳定为 60fps（与单机表现一致）。唯一区别：每帧 runFrame
+     * 前插入异步 barrier 等待对端输入，因此整个循环是 async 的。
      *
-     * 因为每帧 await 远程输入，此循环是异步的；浏览器音频回调由系统驱动，
-     * 短暂等待不会冻结主线程（但环形缓冲可能耗尽，属 lockstep 正常现象）。
+     * deltaTime 由 rAF 触发提供（rAF 只决定"何时检查一次"，不决定"跑几帧"），
+     * 实际帧数仍由 `while (deltaTime >= frameDuration)` 严格控制。
      */
     private mainLoopNetcode = async() => {
         if (!this.netcodeMode || !this.netcodeHooks || this.netcodeLocalPlayer === null) {
             return
         }
         this.netcodeLoopRunning = true
+        this.lastFrameTime = performance.now()
 
         try {
             while (this.status === 1 && this.netcodeMode) {
-                const frame = this.nes.frameCount
+                const now = performance.now()
+                let deltaTime = now - this.lastFrameTime
 
-                // 1. 采样本地输入并发送给对端
-                const localInput = this.nes.getInput(this.netcodeLocalPlayer)
-                this.netcodeHooks.sendLocalInput(frame, localInput)
-
-                // 2. 等待对端该帧输入到达
-                let remoteInput: number
-                try {
-                    remoteInput = await this.netcodeHooks.waitForRemoteInput(frame)
-                }
-                catch(err) {
-                    console.warn('[netcode] 帧屏障失败，退出联机循环:', err)
-                    this.disableNetcode()
-                    break
+                // 与单机一致的防漂移逻辑：掉帧超 1 秒则放弃追赶
+                if (deltaTime > 1000) {
+                    this.lastFrameTime = now
+                    deltaTime = 0
                 }
 
-                // 3. 注入远程输入并推进一帧
-                if (this.netcodeRemotePlayer !== null) {
-                    this.nes.setInput(this.netcodeRemotePlayer, remoteInput)
+                // 还没到下一帧的执行时间——用 rAF 等到下一次刷新再检查
+                if (deltaTime < this.frameDuration) {
+                    await this.nextFrameTick()
+                    continue
                 }
-                this.nes.runFrame()
 
-                // 4. 帧节奏控制：用 rAF 对齐到下一次刷新，避免快于 60fps
-                await this.nextFrameTick()
+                // 按 deltaTime 追赶，每帧前都要等对端输入（lockstep barrier）
+                while (deltaTime >= this.frameDuration && this.status === 1 && this.netcodeMode) {
+                    const frame = this.nes.frameCount
+
+                    // 1. 采样本地输入并发送给对端
+                    const localInput = this.nes.getInput(this.netcodeLocalPlayer)
+                    this.netcodeHooks.sendLocalInput(frame, localInput)
+
+                    // 2. 等待对端该帧输入到达（顺序队列模型，frame 号仅用于日志）
+                    let remoteInput: number
+                    try {
+                        remoteInput = await this.netcodeHooks.waitForRemoteInput(frame)
+                    }
+                    catch(err) {
+                        console.warn('[netcode] 帧屏障失败，退出联机循环:', err)
+                        this.disableNetcode()
+                        break
+                    }
+
+                    // 如果等待期间状态变化（如被暂停），立即退出
+                    if (this.status !== 1 || !this.netcodeMode) break
+
+                    // 3. 注入远程输入并推进一帧
+                    if (this.netcodeRemotePlayer !== null) {
+                        this.nes.setInput(this.netcodeRemotePlayer, remoteInput)
+                    }
+                    this.nes.runFrame()
+                    this.lastFrameTime += this.frameDuration
+                    deltaTime -= this.frameDuration
+                }
             }
         }
         finally {
@@ -172,7 +192,12 @@ class NESEmulator {
         }
     }
 
-    /** 等待下一个 requestAnimationFrame 回调（帧节奏节流） */
+    /**
+     * 用 requestAnimationFrame 等待下一次屏幕刷新。
+     * 这里 rAF 的作用是"挂起循环、让出主线程"，不参与帧数计算——
+     * 实际帧数由 mainLoopNetcode 外层的 deltaTime 累积严格控制，
+     * 因此高刷新率显示器不会导致加速。
+     */
     private nextFrameTick(): Promise<void> {
         return new Promise(resolve => {
             requestAnimationFrame(() => resolve())

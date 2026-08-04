@@ -34,6 +34,8 @@ export enum ControlCode {
     START = 1,
     RESET = 2,
     DISCONNECT = 3,
+    PAUSE = 4,
+    RESUME = 5,
 }
 
 /** 控制码 → 描述，便于日志 */
@@ -42,6 +44,8 @@ export const CONTROL_CODE_LABEL: Record<number, string> = {
     [ControlCode.START]:      'START',
     [ControlCode.RESET]:      'RESET',
     [ControlCode.DISCONNECT]: 'DISCONNECT',
+    [ControlCode.PAUSE]:      'PAUSE',
+    [ControlCode.RESUME]:     'RESUME',
 }
 
 /** 协议解析出的原始消息 */
