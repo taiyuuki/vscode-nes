@@ -15,5 +15,7 @@ export {
     decodeControlPayload,
     encodeRomPayload,
     decodeRomPayload,
+    encodeSyncPayload,
+    decodeSyncPayload,
 } from './protocol'
 export type { RawMessage } from './protocol'

@@ -302,6 +302,7 @@ function setupNetcode(context: vscode.ExtensionContext): void {
             onSave:    saveState => panelManager.postMessage({ type: 'net-recv', kind: 'save', saveState: Array.from(saveState) }),
             onControl: code => panelManager.postMessage({ type: 'net-recv', kind: 'control', code }),
             onRom:     (name, rom) => panelManager.postMessage({ type: 'net-recv', kind: 'rom', name, rom: Array.from(rom) }),
+            onSync:    (frame, hash) => panelManager.postMessage({ type: 'net-recv', kind: 'sync', frame, hash }),
         },
 
         // 连接状态变化 → 转发给 webview
@@ -345,6 +346,9 @@ function setupNetcode(context: vscode.ExtensionContext): void {
                 break
             case 'rom':
                 netManager.sendRom(data.name, new Uint8Array(data.rom))
+                break
+            case 'sync':
+                netManager.sendSync(data.frame, data.hash)
                 break
         }
     })

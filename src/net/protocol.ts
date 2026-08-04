@@ -18,6 +18,7 @@ export enum MessageKind {
     SAVE = 0x02,
     CONTROL = 0x03,
     ROM = 0x04,
+    SYNC = 0x05,
 }
 
 /** 消息类型 → 描述，便于日志 */
@@ -26,6 +27,7 @@ export const MESSAGE_KIND_LABEL: Record<number, string> = {
     [MessageKind.SAVE]:    'SAVE',
     [MessageKind.CONTROL]: 'CONTROL',
     [MessageKind.ROM]:     'ROM',
+    [MessageKind.SYNC]:    'SYNC',
 }
 
 /** 控制消息码 */
@@ -147,6 +149,27 @@ export function decodeRomPayload(payload: Buffer): { name: string, rom: Uint8Arr
     const rom = new Uint8Array(payload.subarray(2 + nameLen + 4, 2 + nameLen + 4 + romLen))
 
     return { name, rom }
+}
+
+/**
+ * 编码状态同步校验 payload: [4B frame(LE)] [4B hash(LE)]
+ *
+ * 用于 lockstep 定期状态校验：双方每隔 N 帧各算一份 CPU RAM 指纹，
+ * 通过 SYNC 消息交换，hash 不一致则触发重同步（host 发存档）。
+ */
+export function encodeSyncPayload(frame: number, hash: number): Buffer {
+    const buf = Buffer.allocUnsafe(8)
+    buf.writeUInt32LE(frame >>> 0, 0)
+    buf.writeUInt32LE(hash >>> 0, 4)
+    return buf
+}
+
+/** 解码状态同步校验 payload */
+export function decodeSyncPayload(payload: Buffer): { frame: number, hash: number } {
+    return {
+        frame: payload.readUInt32LE(0),
+        hash:  payload.readUInt32LE(4),
+    }
 }
 
 /**

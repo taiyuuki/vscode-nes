@@ -9,11 +9,13 @@ import {
     decodeInputPayload,
     decodeRomPayload,
     decodeSavePayload,
+    decodeSyncPayload,
     encodeControlPayload,
     encodeInputPayload,
     encodeMessage,
     encodeRomPayload,
     encodeSavePayload,
+    encodeSyncPayload,
 } from './protocol'
 
 /**
@@ -24,6 +26,7 @@ export interface NetMessageHandler {
     onSave?(saveState: Uint8Array): void
     onControl?(code: ControlCode): void
     onRom?(name: string, rom: Uint8Array): void
+    onSync?(frame: number, hash: number): void
 }
 
 /**
@@ -198,6 +201,11 @@ export class NetManager {
                 this.messageHandler.onRom?.(name, rom)
                 break
             }
+            case MessageKind.SYNC: {
+                const { frame, hash } = decodeSyncPayload(msg.payload)
+                this.messageHandler.onSync?.(frame, hash)
+                break
+            }
             default:
                 console.warn('[NetManager] unknown message kind:', msg.kind)
         }
@@ -208,6 +216,11 @@ export class NetManager {
     /** 发送一帧输入 */
     sendInput(frame: number, input: number): void {
         this.write(MessageKind.INPUT, encodeInputPayload(frame, input))
+    }
+
+    /** 发送状态校验 hash */
+    sendSync(frame: number, hash: number): void {
+        this.write(MessageKind.SYNC, encodeSyncPayload(frame, hash))
     }
 
     /** 发送初始存档 */

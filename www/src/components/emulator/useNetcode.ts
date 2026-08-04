@@ -183,6 +183,97 @@ export function useNetcode(vscode: any) {
             case 'rom':
                 onRemoteRom(data.name, new Uint8Array(data.rom))
                 break
+            case 'sync':
+                onRemoteSync(data.frame, data.hash)
+                break
+        }
+    }
+
+    // ============ 状态校验（desync 检测与自动重同步） ============
+
+    // 本端最近一次发送的校验：{ frame, hash }，等对端回应同一帧的 hash 后对比
+    let pendingSyncCheck: { frame: number, hash: number } | null = null
+    let syncCheckTimer: ReturnType<typeof setInterval> | null = null
+
+    /**
+     * 计算 CPU RAM 的 FNV-1a 哈希（2KB → 32 位指纹）。
+     * CPU RAM 包含零页、栈、游戏变量等全部运行时状态，
+     * 两端 hash 一致即可认为模拟状态同步。
+     */
+    function computeStateHash(): number {
+        if (!emu) return 0
+        const ram = emu.getNESInstance().getCPURAM()?.getRAM()
+        if (!ram) return 0
+
+        // FNV-1a 32-bit
+        let hash = 0x811C9DC5
+        for (let i = 0; i < ram.length; i++) {
+            hash ^= ram[i]
+            hash = Math.imul(hash, 0x01000193)
+        }
+        // 把 frameCount 也混入，保证帧号也对齐
+        const frame = emu.getNESInstance().frameCount
+        hash ^= frame & 0xFF
+        hash = Math.imul(hash, 0x01000193)
+        hash ^= (frame >>> 8) & 0xFF
+        hash = Math.imul(hash, 0x01000193)
+
+        return hash >>> 0
+    }
+
+    /** 启动定期校验定时器（在 startNetcodeLoop 里调用） */
+    function startSyncCheck(): void {
+        stopSyncCheck()
+        syncCheckTimer = setInterval(() => {
+            if (!emu || !netcodeActive) return
+            if (pendingSyncCheck) return // 上一轮还没收到回应，跳过
+
+            const frame = emu.getNESInstance().frameCount
+            const hash = computeStateHash()
+            pendingSyncCheck = { frame, hash }
+            vscode.postMessage({ type: 'net-send', kind: 'sync', frame, hash })
+        }, 1000) // 每秒发一次校验
+    }
+
+    /** 停止定期校验 */
+    function stopSyncCheck(): void {
+        if (syncCheckTimer) {
+            clearInterval(syncCheckTimer)
+            syncCheckTimer = null
+        }
+        pendingSyncCheck = null
+    }
+
+    /**
+     * 收到对端的状态校验 hash。
+     *
+     * 两种情况：
+     *   1. 我先发了校验、这是对端的回应 → 对比 hash，不一致则触发重同步
+     *   2. 我没发校验、这是对端主动发的 → 我回应自己的 hash
+     */
+    function onRemoteSync(_frame: number, remoteHash: number): void {
+        if (pendingSyncCheck) {
+            // 我发过校验，这是对端对同一帧的回应
+            const localHash = pendingSyncCheck.hash
+            pendingSyncCheck = null
+
+            if (localHash !== remoteHash) {
+                console.warn(`[netcode] 状态校验不一致！local=${localHash.toString(16)} remote=${remoteHash.toString(16)}`)
+                // host 负责重同步：发当前存档给 guest 重新对齐
+                if (role.value === 'host') {
+                    statusText.value = '检测到不同步，正在重同步…'
+                    netStatus.value = 'syncing'
+                    void hostSendSaveState()
+                }
+            }
+            // else hash 一致，无需操作
+        }
+        else {
+            // 对端主动发的校验，我回应自己的 hash
+            if (!emu) return
+            const frame = emu.getNESInstance().frameCount
+            const hash = computeStateHash()
+            vscode.postMessage({ type: 'net-send', kind: 'sync', frame, hash })
         }
     }
 
@@ -330,11 +421,13 @@ export function useNetcode(vscode: any) {
             sendLocalInput,
         })
         void emu.start()
+        startSyncCheck()
     }
 
     /** 拆除联机状态 */
     function teardown(reason: string): void {
         netcodeActive = false
+        stopSyncCheck()
         if (emu) {
             emu.disableNetcode()
         }
