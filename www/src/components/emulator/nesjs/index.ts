@@ -16,10 +16,13 @@ export type NESEmulatorOptions = AudioOptions & CanvasRendererOptions & Emulator
  * Netcode 回调集合，由 useNetcode 注入。
  * - waitForRemoteInput(frame)：阻塞直到对端第 frame 帧输入到达，返回 1 字节输入
  * - sendLocalInput(frame, input)：把本地第 frame 帧输入发给对端
+ * - onSyncCheckPoint(frame)：每 N 帧 runFrame 完成后调用，用于状态校验采样
+ *   （可选，不提供则不校验）
  */
 export interface NetcodeHooks {
     waitForRemoteInput: (frame: number) => Promise<number>
     sendLocalInput:     (frame: number, input: number) => void
+    onSyncCheckPoint?:  (frame: number) => void
 }
 
 class NESEmulator {
@@ -186,7 +189,13 @@ class NESEmulator {
                 this.nes.runFrame()
                 this.lastFrameTime += this.frameDuration
 
-                // 4. 让出主线程——让浏览器处理键盘事件，保证下一帧 getInput 读到最新输入
+                // 4. 状态校验采样点：每 N 帧（帧边界）采样一次，
+                //    保证两端在完全相同的时间点（刚跑完第 N 帧后）采集 CPU RAM
+                if (this.netcodeHooks.onSyncCheckPoint && this.nes.frameCount % 60 === 0) {
+                    this.netcodeHooks.onSyncCheckPoint(this.nes.frameCount)
+                }
+
+                // 5. 让出主线程——让浏览器处理键盘事件，保证下一帧 getInput 读到最新输入
                 await this.nextFrameTick()
             }
         }
@@ -231,11 +240,13 @@ class NESEmulator {
         const localPlayer = this.netcodeLocalPlayer
 
         if (localPlayer === 1) {
+
             // host（本地 P1）：清除远程 P2 的键盘映射，P1 保持不变
             this.controller.setupKeyboadController(1, this.savedP1KeyMap)
             this.controller.setupKeyboadController(2, {})
         }
         else {
+
             // guest（本地 P2）：清除远程 P1 的键盘映射，
             // 并把本地 P2 的按键映射设为 P1 的配置——让用户用 P1 按键操作 P2
             this.controller.setupKeyboadController(1, {})
@@ -281,6 +292,7 @@ class NESEmulator {
                 else {
                     this.run()
                 }
+
                 // 音频启动放最后且不阻塞游戏循环——AudioContext.resume()
                 // 在无用户交互时会挂起，若放在 run() 前会导致游戏要等点击才开始
                 void this.audioOutput.start()

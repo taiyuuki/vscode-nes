@@ -193,16 +193,27 @@ export function useNetcode(vscode: any) {
 
     // 本端最近一次发送的校验：{ frame, hash }，等对端回应同一帧的 hash 后对比
     let pendingSyncCheck: { frame: number, hash: number } | null = null
-    let syncCheckTimer: ReturnType<typeof setInterval> | null = null
+
+    // 连续不一致计数：只有连续多次不一致才真正触发重同步，容忍偶发瞬时差异
+    let desyncStreak = 0
+
+    /** 连续不一致达到此阈值才触发重同步 */
+    const DESYNC_THRESHOLD = 3
+
+    /** 重同步后的冷却期（毫秒），期间不校验，等两端稳定下来 */
+    let resyncCooldownUntil = 0
 
     /**
      * 计算 CPU RAM 的 FNV-1a 哈希（2KB → 32 位指纹）。
-     * CPU RAM 包含零页、栈、游戏变量等全部运行时状态，
-     * 两端 hash 一致即可认为模拟状态同步。
+     *
+     * 只比较 CPU RAM（零页、栈、游戏变量），**不混入 frameCount**——
+     * 因为两端的 frameCount 初始值可能差几帧（存档同步时序差异），
+     * 但只要游戏逻辑状态一致就无需纠正。
      */
     function computeStateHash(): number {
         if (!emu) return 0
-        const ram = emu.getNESInstance().getCPURAM()?.getRAM()
+        const ram = emu.getNESInstance().getCPURAM()
+            ?.getRAM()
         if (!ram) return 0
 
         // FNV-1a 32-bit
@@ -211,37 +222,33 @@ export function useNetcode(vscode: any) {
             hash ^= ram[i]
             hash = Math.imul(hash, 0x01000193)
         }
-        // 把 frameCount 也混入，保证帧号也对齐
-        const frame = emu.getNESInstance().frameCount
-        hash ^= frame & 0xFF
-        hash = Math.imul(hash, 0x01000193)
-        hash ^= (frame >>> 8) & 0xFF
-        hash = Math.imul(hash, 0x01000193)
 
         return hash >>> 0
     }
 
-    /** 启动定期校验定时器（在 startNetcodeLoop 里调用） */
-    function startSyncCheck(): void {
-        stopSyncCheck()
-        syncCheckTimer = setInterval(() => {
-            if (!emu || !netcodeActive) return
-            if (pendingSyncCheck) return // 上一轮还没收到回应，跳过
+    /**
+     * 帧边界状态校验采样点（由 NESEmulator.mainLoopNetcode 每 60 帧调用一次）。
+     *
+     * 在刚跑完一帧的帧边界上采集 hash，保证两端在完全相同的模拟阶段采样
+     * （不会像独立 setInterval 那样在帧中间随机触发，导致状态不可比）。
+     */
+    function onSyncCheckPoint(frame: number): void {
+        if (!emu || !netcodeActive) return
+        if (pendingSyncCheck) return // 上一轮还没收到回应，跳过
 
-            const frame = emu.getNESInstance().frameCount
-            const hash = computeStateHash()
-            pendingSyncCheck = { frame, hash }
-            vscode.postMessage({ type: 'net-send', kind: 'sync', frame, hash })
-        }, 1000) // 每秒发一次校验
+        // 重同步冷却期内不校验
+        if (Date.now() < resyncCooldownUntil) return
+
+        const hash = computeStateHash()
+        pendingSyncCheck = { frame, hash }
+        vscode.postMessage({ type: 'net-send', kind: 'sync', frame, hash })
     }
 
-    /** 停止定期校验 */
-    function stopSyncCheck(): void {
-        if (syncCheckTimer) {
-            clearInterval(syncCheckTimer)
-            syncCheckTimer = null
-        }
+    /** 重置校验状态（联机启动/重同步时调用） */
+    function resetSyncCheck(): void {
         pendingSyncCheck = null
+        desyncStreak = 0
+        resyncCooldownUntil = 0
     }
 
     /**
@@ -253,22 +260,34 @@ export function useNetcode(vscode: any) {
      */
     function onRemoteSync(_frame: number, remoteHash: number): void {
         if (pendingSyncCheck) {
+
             // 我发过校验，这是对端对同一帧的回应
             const localHash = pendingSyncCheck.hash
             pendingSyncCheck = null
 
-            if (localHash !== remoteHash) {
-                console.warn(`[netcode] 状态校验不一致！local=${localHash.toString(16)} remote=${remoteHash.toString(16)}`)
-                // host 负责重同步：发当前存档给 guest 重新对齐
-                if (role.value === 'host') {
-                    statusText.value = '检测到不同步，正在重同步…'
+            if (localHash === remoteHash) {
+
+                // hash 一致，重置计数
+                desyncStreak = 0
+            }
+            else {
+                desyncStreak++
+                console.warn(`[netcode] 状态校验不一致 (${desyncStreak}/${DESYNC_THRESHOLD}) local=${localHash.toString(16)} remote=${remoteHash.toString(16)}`)
+
+                // 只有连续多次不一致才触发重同步，容忍偶发瞬时差异
+                if (desyncStreak >= DESYNC_THRESHOLD && role.value === 'host') {
+                    desyncStreak = 0
+
+                    // 设 5 秒冷却，避免重同步后立即又校验
+                    resyncCooldownUntil = Date.now() + 5000
+                    statusText.value = '检测到持续不同步，正在重同步…'
                     netStatus.value = 'syncing'
                     void hostSendSaveState()
                 }
             }
-            // else hash 一致，无需操作
         }
         else {
+
             // 对端主动发的校验，我回应自己的 hash
             if (!emu) return
             const frame = emu.getNESInstance().frameCount
@@ -415,19 +434,20 @@ export function useNetcode(vscode: any) {
             barrierTimer = null
         }
         pendingResolver = null
+        resetSyncCheck()
 
         emu.enableNetcode(remotePlayer.value, {
             waitForRemoteInput,
             sendLocalInput,
+            onSyncCheckPoint,
         })
         void emu.start()
-        startSyncCheck()
     }
 
     /** 拆除联机状态 */
     function teardown(reason: string): void {
         netcodeActive = false
-        stopSyncCheck()
+        resetSyncCheck()
         if (emu) {
             emu.disableNetcode()
         }
@@ -441,6 +461,7 @@ export function useNetcode(vscode: any) {
             clearTimeout(barrierTimer)
             barrierTimer = null
         }
+        resetSyncCheck()
 
         netStatus.value = 'offline'
         statusText.value = reason

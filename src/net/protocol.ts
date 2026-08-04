@@ -161,6 +161,7 @@ export function encodeSyncPayload(frame: number, hash: number): Buffer {
     const buf = Buffer.allocUnsafe(8)
     buf.writeUInt32LE(frame >>> 0, 0)
     buf.writeUInt32LE(hash >>> 0, 4)
+
     return buf
 }
 
