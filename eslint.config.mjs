@@ -10,6 +10,7 @@ export default tyk_eslint({
         '**/test',
         '**/res',
         '**/*.css',
+        '**/*.md',
         'www/src/7z/**',
         'www/scripts/**',
     ],

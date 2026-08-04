@@ -14,10 +14,10 @@
 
 /** 消息类型 */
 export enum MessageKind {
-    INPUT   = 0x01,
-    SAVE    = 0x02,
+    INPUT = 0x01,
+    SAVE = 0x02,
     CONTROL = 0x03,
-    ROM     = 0x04,
+    ROM = 0x04,
 }
 
 /** 消息类型 → 描述，便于日志 */

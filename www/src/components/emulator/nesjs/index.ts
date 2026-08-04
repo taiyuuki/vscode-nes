@@ -260,7 +260,6 @@ class NESEmulator {
                 }
                 this.status = 1
                 this.lastFrameTime = performance.now()
-                await this.audioOutput.start()
                 if (this.netcodeMode) {
 
                     // 联机：用 lockstep 异步循环替代单机 rAF 追赶循环
@@ -269,6 +268,9 @@ class NESEmulator {
                 else {
                     this.run()
                 }
+                // 音频启动放最后且不阻塞游戏循环——AudioContext.resume()
+                // 在无用户交互时会挂起，若放在 run() 前会导致游戏要等点击才开始
+                void this.audioOutput.start()
 
                 break
             case 2: // Paused
