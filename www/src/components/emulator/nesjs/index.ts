@@ -124,12 +124,17 @@ class NESEmulator {
     /**
      * Netcode 主循环（lockstep）
      *
-     * 采用与单机 mainLoop 相同的 rAF + deltaTime 累积框架，保证帧率在任何
-     * 刷新率显示器下都稳定为 60fps（与单机表现一致）。唯一区别：每帧 runFrame
-     * 前插入异步 barrier 等待对端输入，因此整个循环是 async 的。
+     * 与单机 mainLoop 的关键区别：**严格 1 rAF = 1 帧，不追赶历史帧**。
      *
-     * deltaTime 由 rAF 触发提供（rAF 只决定"何时检查一次"，不决定"跑几帧"），
-     * 实际帧数仍由 `while (deltaTime >= frameDuration)` 严格控制。
+     * lockstep 要求两端帧严格一一对应。如果积压了多帧后用 while 连续追赶，
+     * 中间没有 rAF 让出主线程，本地键盘事件不会被处理——getInput 会连续读到
+     * 同一个按键状态，导致发给对端的输入重复，两端迅速失步。
+     *
+     * 因此每轮循环：最多推进 1 帧 → await rAF 让出主线程（让浏览器处理键盘/网络）。
+     * 这样每帧的 getInput 读到的都是最新输入，两端帧率天然对齐。
+     *
+     * deltaTime 只用于决定"这一轮 rAF 是否到了跑帧的时机"，不做累积追赶：
+     * 超时积压则重置（与单机防漂移一致），保证不会越来越慢。
      */
     private mainLoopNetcode = async() => {
         if (!this.netcodeMode || !this.netcodeHooks || this.netcodeLocalPlayer === null) {
@@ -141,50 +146,48 @@ class NESEmulator {
         try {
             while (this.status === 1 && this.netcodeMode) {
                 const now = performance.now()
-                let deltaTime = now - this.lastFrameTime
+                const deltaTime = now - this.lastFrameTime
 
-                // 与单机一致的防漂移逻辑：掉帧超 1 秒则放弃追赶
+                // 掉帧超 1 秒则重置时钟，避免无限积压（单机一致的防漂移逻辑）
                 if (deltaTime > 1000) {
                     this.lastFrameTime = now
-                    deltaTime = 0
                 }
 
-                // 还没到下一帧的执行时间——用 rAF 等到下一次刷新再检查
+                // 还没到下一帧的执行时间——让出主线程等下一次刷新
                 if (deltaTime < this.frameDuration) {
                     await this.nextFrameTick()
                     continue
                 }
 
-                // 按 deltaTime 追赶，每帧前都要等对端输入（lockstep barrier）
-                while (deltaTime >= this.frameDuration && this.status === 1 && this.netcodeMode) {
-                    const frame = this.nes.frameCount
+                // ---- 推进 1 帧（lockstep barrier）----
 
-                    // 1. 采样本地输入并发送给对端
-                    const localInput = this.nes.getInput(this.netcodeLocalPlayer)
-                    this.netcodeHooks.sendLocalInput(frame, localInput)
+                // 1. 采样本地输入并发送给对端
+                const localInput = this.nes.getInput(this.netcodeLocalPlayer)
+                this.netcodeHooks.sendLocalInput(this.nes.frameCount, localInput)
 
-                    // 2. 等待对端该帧输入到达（顺序队列模型，frame 号仅用于日志）
-                    let remoteInput: number
-                    try {
-                        remoteInput = await this.netcodeHooks.waitForRemoteInput(frame)
-                    }
-                    catch(err) {
-                        console.warn('[netcode] 帧屏障失败，退出联机循环:', err)
-                        this.disableNetcode()
-                        break
-                    }
-
-                    // 如果等待期间状态变化（如被暂停），立即退出
-                    if (this.status !== 1 || !this.netcodeMode) break
-
-                    // 3. 注入远程输入并推进一帧
-                    if (this.netcodeRemotePlayer !== null) {
-                        this.nes.setInput(this.netcodeRemotePlayer, remoteInput)
-                    }
-                    this.nes.runFrame()
-                    this.lastFrameTime += this.frameDuration
-                    deltaTime -= this.frameDuration
+                // 2. 等待对端该帧输入到达
+                let remoteInput: number
+                try {
+                    remoteInput = await this.netcodeHooks.waitForRemoteInput(this.nes.frameCount)
                 }
+                catch(err) {
+                    console.warn('[netcode] 帧屏障失败，退出联机循环:', err)
+                    this.disableNetcode()
+                    break
+                }
+
+                // 等待期间状态可能变化（如被暂停），立即退出
+                if (this.status !== 1 || !this.netcodeMode) break
+
+                // 3. 注入远程输入并推进一帧
+                if (this.netcodeRemotePlayer !== null) {
+                    this.nes.setInput(this.netcodeRemotePlayer, remoteInput)
+                }
+                this.nes.runFrame()
+                this.lastFrameTime += this.frameDuration
+
+                // 4. 让出主线程——让浏览器处理键盘事件，保证下一帧 getInput 读到最新输入
+                await this.nextFrameTick()
             }
         }
         finally {
