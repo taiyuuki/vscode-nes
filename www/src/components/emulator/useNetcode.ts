@@ -96,6 +96,20 @@ export function useNetcode(vscode: any) {
         vscode.postMessage({ type: 'net-send', kind: 'input', frame, input })
     }
 
+    /**
+     * 清零双方手柄的按键状态。
+     *
+     * 在 lockstep 循环启动前调用，保证两端第一帧的 getInput 读到的是干净的 0，
+     * 而非存档残留的按键状态或用户误触。NES 游戏的随机性精确到帧——
+     * 第一帧任何按键差异都会导致关卡 RNG 种子不同，进而完全不同步。
+     */
+    function clearAllGamepads(): void {
+        if (!emu) return
+        const nes = emu.getNESInstance()
+        nes.setInput(1, 0)
+        nes.setInput(2, 0)
+    }
+
     // ============ 消息监听 ============
 
     function onMessage(e: MessageEvent): void {
@@ -193,32 +207,47 @@ export function useNetcode(vscode: any) {
     // ============ 握手与同步 ============
 
     /**
-     * 控制码：0=READY, 1=START, 2=RESET, 3=DISCONNECT, 4=PAUSE, 5=RESUME
+     * 控制码：0=READY, 1=START, 2=RESET, 3=DISCONNECT, 4=PAUSE, 5=RESUME, 6=START_ACK
      *
-     * 握手流程：
+     * 启动协议（严格同步起点）：
      *   guest 加载存档 → 发 READY(0)
-     *   host 收到 READY → UI 可点"开始游戏"，发 START(1)
-     *   双方收到 START → 进入 netcode 主循环
+     *   host 收到 READY → UI 可点"开始游戏"
+     *   host 点开始 → 发 START(1)，进入"等待 ACK"状态（不启动循环）
+     *   guest 收到 START → 清零手柄 → 发 START_ACK(6) → 启动 guest 循环
+     *   host 收到 START_ACK → 清零手柄 → 启动 host 循环
+     *
+     *   双方都在收到/发出 ACK 的瞬间清零手柄并启动循环，
+     *   保证第一帧 getInput 读到的是干净的 0（而非存档残留或误触）。
      *
      * 暂停同步：
-     *   任一方暂停 → 发 PAUSE(4)，对方收到后也暂停（停止 runFrame，但仍响应输入同步）
+     *   任一方暂停 → 发 PAUSE(4)，对方收到后也暂停
      *   任一方恢复 → 发 RESUME(5)，对方收到后恢复 lockstep 循环
      */
     function onControl(code: number): void {
         if (code === 0) {
-
             // READY：guest 已就绪。host 此时可以开始游戏
             if (role.value === 'host') {
                 statusText.value = '对手已就绪，点击"开始游戏"开始联机'
             }
         }
         else if (code === 1) {
-
-            // START：进入 netcode 主循环
-            startNetcodeLoop()
+            // START：guest 收到 host 的启动指令
+            // 清零手柄 → 回 START_ACK → 启动循环
+            if (emu) {
+                clearAllGamepads()
+                vscode.postMessage({ type: 'net-send', kind: 'control', code: 6 })
+                startNetcodeLoop()
+            }
+        }
+        else if (code === 6) {
+            // START_ACK：host 收到 guest 的确认
+            // 清零手柄 → 启动循环
+            if (role.value === 'host' && emu) {
+                clearAllGamepads()
+                startNetcodeLoop()
+            }
         }
         else if (code === 2) {
-
             // RESET：双方同步重置
             emu?.reset()
         }
@@ -226,8 +255,7 @@ export function useNetcode(vscode: any) {
             teardown('对手已断开')
         }
         else if (code === 4) {
-
-            // PAUSE：对端暂停，本地也暂停（lockstep 循环检查 status 会退出）
+            // PAUSE：对端暂停，本地也暂停
             if (netcodeActive && emu) {
                 void emu.pause().then(() => {
                     netStatus.value = 'syncing'
@@ -236,7 +264,6 @@ export function useNetcode(vscode: any) {
             }
         }
         else if (code === 5) {
-
             // RESUME：对端恢复，本地也恢复
             if (netcodeActive && emu) {
                 void emu.resume()
@@ -379,10 +406,16 @@ export function useNetcode(vscode: any) {
         teardown('已主动断开')
     }
 
-    /** host：开始游戏（在存档同步完成后调用，会向 guest 发 START） */
+    /**
+     * host：开始游戏。
+     *
+     * 只发 START(1)，不立即启动循环——要等 guest 回 START_ACK(6) 确认后，
+     * 双方在 onControl 里同时清零手柄并启动 lockstep 循环。
+     * 这样保证两端从同一帧、同一输入状态（全零）开始，消除 RNG 种子分叉。
+     */
     function hostStartGame(): void {
+        statusText.value = '等待对手确认…'
         vscode.postMessage({ type: 'net-send', kind: 'control', code: 1 })
-        startNetcodeLoop()
     }
 
     /**
