@@ -16,13 +16,13 @@ export type NESEmulatorOptions = AudioOptions & CanvasRendererOptions & Emulator
  * Netcode 回调集合，由 useNetcode 注入。
  * - waitForRemoteInput(frame)：阻塞直到对端第 frame 帧输入到达，返回 1 字节输入
  * - sendLocalInput(frame, input)：把本地第 frame 帧输入发给对端
- * - onSyncCheckPoint(frame)：每 N 帧 runFrame 完成后调用，用于状态校验采样
- *   （可选，不提供则不校验）
+ * - onLoopExit?(reason)：lockstep 循环退出时调用（无论正常退出还是 barrier 超时），
+ *   useNetcode 在此重置 netcodeActive 等状态，使 UI 能重新触发"开始游戏"
  */
 export interface NetcodeHooks {
     waitForRemoteInput: (frame: number) => Promise<number>
     sendLocalInput:     (frame: number, input: number) => void
-    onSyncCheckPoint?:  (frame: number) => void
+    onLoopExit?:        (reason: string) => void
 }
 
 class NESEmulator {
@@ -145,6 +145,7 @@ class NESEmulator {
         }
         this.netcodeLoopRunning = true
         this.lastFrameTime = performance.now()
+        let exitReason = 'normal'
 
         try {
             while (this.status === 1 && this.netcodeMode) {
@@ -173,14 +174,17 @@ class NESEmulator {
                 try {
                     remoteInput = await this.netcodeHooks.waitForRemoteInput(this.nes.frameCount)
                 }
-                catch(err) {
-                    console.warn('[netcode] 帧屏障失败，退出联机循环:', err)
+                catch {
+                    exitReason = 'barrier-timeout'
                     this.disableNetcode()
                     break
                 }
 
-                // 等待期间状态可能变化（如被暂停），立即退出
-                if (this.status !== 1 || !this.netcodeMode) break
+                // 等待期间状态可能变化（如被暂停），退出但不视为异常
+                if (this.status !== 1 || !this.netcodeMode) {
+                    exitReason = 'paused'
+                    break
+                }
 
                 // 3. 注入远程输入并推进一帧
                 if (this.netcodeRemotePlayer !== null) {
@@ -189,18 +193,18 @@ class NESEmulator {
                 this.nes.runFrame()
                 this.lastFrameTime += this.frameDuration
 
-                // 4. 状态校验采样点：每 N 帧（帧边界）采样一次，
-                //    保证两端在完全相同的时间点（刚跑完第 N 帧后）采集 CPU RAM
-                if (this.netcodeHooks.onSyncCheckPoint && this.nes.frameCount % 60 === 0) {
-                    this.netcodeHooks.onSyncCheckPoint(this.nes.frameCount)
-                }
-
-                // 5. 让出主线程——让浏览器处理键盘事件，保证下一帧 getInput 读到最新输入
+                // 4. 让出主线程——让浏览器处理键盘事件，保证下一帧 getInput 读到最新输入
                 await this.nextFrameTick()
             }
         }
         finally {
             this.netcodeLoopRunning = false
+
+            // 通知 useNetcode 层循环已退出，让它重置 netcodeActive 等状态
+            // （pause 退出不算异常，不重置——resume 时会重新进入循环）
+            if (exitReason !== 'paused') {
+                this.netcodeHooks.onLoopExit?.(exitReason)
+            }
         }
     }
 
