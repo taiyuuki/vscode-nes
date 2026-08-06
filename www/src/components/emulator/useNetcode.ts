@@ -225,12 +225,14 @@ export function useNetcode(vscode: any) {
      */
     function onControl(code: number): void {
         if (code === 0) {
+
             // READY：guest 已就绪。host 此时可以开始游戏
             if (role.value === 'host') {
                 statusText.value = '对手已就绪，点击"开始游戏"开始联机'
             }
         }
         else if (code === 1) {
+
             // START：guest 收到 host 的启动指令
             // 清零手柄 → 回 START_ACK → 启动循环
             if (emu) {
@@ -240,6 +242,7 @@ export function useNetcode(vscode: any) {
             }
         }
         else if (code === 6) {
+
             // START_ACK：host 收到 guest 的确认
             // 清零手柄 → 启动循环
             if (role.value === 'host' && emu) {
@@ -248,6 +251,7 @@ export function useNetcode(vscode: any) {
             }
         }
         else if (code === 2) {
+
             // RESET：双方同步重置
             emu?.reset()
         }
@@ -255,8 +259,12 @@ export function useNetcode(vscode: any) {
             teardown('对手已断开')
         }
         else if (code === 4) {
+
             // PAUSE：对端暂停，本地也暂停
             if (netcodeActive && emu) {
+
+                // 清空输入队列，防止暂停期间对端提前发来的输入在恢复后被误消费
+                remoteInputQueue.length = 0
                 void emu.pause().then(() => {
                     netStatus.value = 'syncing'
                     statusText.value = '对手已暂停'
@@ -264,6 +272,7 @@ export function useNetcode(vscode: any) {
             }
         }
         else if (code === 5) {
+
             // RESUME：对端恢复，本地也恢复
             if (netcodeActive && emu) {
                 void emu.resume()
@@ -424,6 +433,9 @@ export function useNetcode(vscode: any) {
      */
     async function pause(): Promise<void> {
         if (!netcodeActive) return
+
+        // 清空输入队列，防止暂停期间对端提前发来的输入在恢复后被误消费
+        remoteInputQueue.length = 0
         vscode.postMessage({ type: 'net-send', kind: 'control', code: 4 })
         if (emu) {
             await emu.pause()
@@ -438,6 +450,9 @@ export function useNetcode(vscode: any) {
      */
     async function resume(): Promise<void> {
         if (!netcodeActive) return
+
+        // 清空输入队列，恢复后从干净状态开始
+        remoteInputQueue.length = 0
         vscode.postMessage({ type: 'net-send', kind: 'control', code: 5 })
         if (emu) {
             await emu.resume()

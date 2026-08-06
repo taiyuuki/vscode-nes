@@ -98,6 +98,15 @@ class NESEmulator {
     }
 
     private mainLoop = () => {
+
+        // 联机模式不跑单机循环（由 mainLoopNetcode 接管）
+        // 暂停/停止时也不跑帧
+        if (this.netcodeMode || this.status !== 1) {
+            this.animationFrameId = null
+
+            return
+        }
+
         const now = performance.now()
         let deltaTime = now - this.lastFrameTime
 
@@ -106,70 +115,53 @@ class NESEmulator {
             deltaTime = 0
         }
 
-        // if (this.status === 1) {
         while (deltaTime >= this.frameDuration) {
             this.nes.runFrame()
             this.lastFrameTime += this.frameDuration
             deltaTime -= this.frameDuration
         }
 
-        // }
-
-        // if (this.status === 1) {
         this.animationFrameId = requestAnimationFrame(this.mainLoop)
-
-        // }
-        // else {
-        //     this.animationFrameId = null
-        // }
     }
 
     /**
      * Netcode 主循环（lockstep）
      *
-     * 与单机 mainLoop 的关键区别：**严格 1 rAF = 1 帧，不追赶历史帧**。
+     * 纯四步循环，没有任何 deltaTime/时钟逻辑——lockstep 的帧率天然由
+     * "网络往返 + rAF 间隔"决定，不需要本地时钟干预。
      *
-     * lockstep 要求两端帧严格一一对应。如果积压了多帧后用 while 连续追赶，
-     * 中间没有 rAF 让出主线程，本地键盘事件不会被处理——getInput 会连续读到
-     * 同一个按键状态，导致发给对端的输入重复，两端迅速失步。
+     * 两端各自独立运行此循环，顺序队列保证输入配对：
+     *   host 发的第 N 个输入 = guest 消费的第 N 个输入，反之亦然。
      *
-     * 因此每轮循环：最多推进 1 帧 → await rAF 让出主线程（让浏览器处理键盘/网络）。
-     * 这样每帧的 getInput 读到的都是最新输入，两端帧率天然对齐。
-     *
-     * deltaTime 只用于决定"这一轮 rAF 是否到了跑帧的时机"，不做累积追赶：
-     * 超时积压则重置（与单机防漂移一致），保证不会越来越慢。
+     * 60Hz 屏 → 每轮约 16.7ms（rAF）→ ~60fps
+     * 120Hz 屏 → 每轮约 8.3ms（rAF），但 barrier 等待通常 ≥ 一个 rAF，
+     *   实际帧率被网络往返限制在 60fps 左右。
+     *   若 barrier 很快返回（输入已缓存），rAF 仍会节流到刷新率，
+     *   但不会超过——因为每轮只有 1 次 runFrame。
+     *   高刷新率可能导致略快于 60fps，但两端输入序列仍一致（确定性不变）。
      */
     private mainLoopNetcode = async() => {
         if (!this.netcodeMode || !this.netcodeHooks || this.netcodeLocalPlayer === null) {
             return
         }
         this.netcodeLoopRunning = true
-        this.lastFrameTime = performance.now()
         let exitReason = 'normal'
 
         try {
             while (this.status === 1 && this.netcodeMode) {
-                const now = performance.now()
-                const deltaTime = now - this.lastFrameTime
 
-                // 掉帧超 1 秒则重置时钟，避免无限积压（单机一致的防漂移逻辑）
-                if (deltaTime > 1000) {
-                    this.lastFrameTime = now
-                }
+                // 1. 帧边界：应用上一轮 await 期间暂存的键盘事件到 buttonStates。
+                //    lockstep 模式下键盘事件不直接写 buttonStates，而是暂存到 buffer，
+                //    只有这里 flush 后 buttonStates 才更新——保证 getInput 采样后
+                //    到 runFrame 之间 buttonStates 不被篡改。
+                this.controller.flushInputs()
 
-                // 还没到下一帧的执行时间——让出主线程等下一次刷新
-                if (deltaTime < this.frameDuration) {
-                    await this.nextFrameTick()
-                    continue
-                }
-
-                // ---- 推进 1 帧（lockstep barrier）----
-
-                // 1. 采样本地输入并发送给对端
+                // 2. 采样本地输入并发送给对端
                 const localInput = this.nes.getInput(this.netcodeLocalPlayer)
                 this.netcodeHooks.sendLocalInput(this.nes.frameCount, localInput)
 
-                // 2. 等待对端该帧输入到达
+                // 3. 等待对端该帧输入到达。
+                //    await 期间键盘事件进入 buffer（不改 buttonStates），安全。
                 let remoteInput: number
                 try {
                     remoteInput = await this.netcodeHooks.waitForRemoteInput(this.nes.frameCount)
@@ -180,20 +172,20 @@ class NESEmulator {
                     break
                 }
 
-                // 等待期间状态可能变化（如被暂停），退出但不视为异常
                 if (this.status !== 1 || !this.netcodeMode) {
                     exitReason = 'paused'
                     break
                 }
 
-                // 3. 注入远程输入并推进一帧
+                // 4. 注入远程输入并 runFrame。
+                //    本地玩家的 buttonStates 自步骤1 flush 后就没被改过（键盘事件在 buffer 里），
+                //    所以 runFrame 读到的本地输入 = 步骤2 采样的 localInput = 发给对端的值。
                 if (this.netcodeRemotePlayer !== null) {
                     this.nes.setInput(this.netcodeRemotePlayer, remoteInput)
                 }
                 this.nes.runFrame()
-                this.lastFrameTime += this.frameDuration
 
-                // 4. 让出主线程——让浏览器处理键盘事件，保证下一帧 getInput 读到最新输入
+                // 5. 让出主线程——让浏览器处理键盘事件（进入 buffer）和渲染
                 await this.nextFrameTick()
             }
         }
@@ -256,11 +248,15 @@ class NESEmulator {
             this.controller.setupKeyboadController(1, {})
             this.controller.setupKeyboadController(2, this.savedP1KeyMap)
         }
+
+        // 开启 lockstep 模式：键盘事件暂存到 buffer，在帧边界 flushInputs 时才应用
+        this.controller.setLockstep(true)
     }
 
     /** 退出 netcode 模式，恢复单机调度与键盘映射 */
     disableNetcode(): void {
         this.netcodeMode = false
+        this.controller.setLockstep(false)
         this.netcodeRemotePlayer = null
         this.netcodeLocalPlayer = null
         this.netcodeHooks = null

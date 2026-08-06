@@ -238,6 +238,18 @@ export class NESController {
     p1KeyMap = P1_DEFAULT
     p2KeyMap = P2_DEFAULT
 
+    /**
+     * lockstep 模式：开启后键盘事件不直接写入 buttonStates，
+     * 而是暂存到 pendingBuffer，等 flushInputs() 时才应用。
+     * 这样 buttonStates 只在帧边界更新，getInput 采样后不会被
+     * await barrier 期间的键盘事件篡改。
+     */
+    private lockstepMode = false
+    private pendingBuffer: Record<Player, Map<number, 0 | 1>> = {
+        1: new Map(),
+        2: new Map(),
+    }
+
     constructor(p1: GamepadInterface, p2: GamepadInterface) {
         this.controllers = { 1: p1, 2: p2 }
         this.setupKeyboadEvents()
@@ -367,12 +379,64 @@ export class NESController {
 
     private setupKeyboadEvents() {
         document.addEventListener('keydown', e => {
-            this.adapter.trigger(e.code, 1, this.mashingSpeed)
+            if (this.lockstepMode) {
+                this.bufferKeyboardEvent(e.code, 1)
+            }
+            else {
+                this.adapter.trigger(e.code, 1, this.mashingSpeed)
+            }
         })
 
         document.addEventListener('keyup', e => {
-            this.adapter.trigger(e.code, 0, this.mashingSpeed)
+            if (this.lockstepMode) {
+                this.bufferKeyboardEvent(e.code, 0)
+            }
+            else {
+                this.adapter.trigger(e.code, 0, this.mashingSpeed)
+            }
         })
+    }
+
+    /**
+     * lockstep 模式下，把键盘事件暂存到 buffer（不直接写 buttonStates）。
+     * buffer 在帧边界由 flushInputs() 应用。
+     */
+    private bufferKeyboardEvent(code: string, state: 0 | 1): void {
+        const eventList = this.adapter.getState(code)
+        if (!eventList) return
+        eventList.forEach(event => {
+            const player = event.player as Player
+            if (event.index <= 7) {
+                this.pendingBuffer[player].set(event.index, state)
+            }
+        })
+    }
+
+    /**
+     * 开启/关闭 lockstep 模式。
+     * 开启后键盘事件暂存到 buffer，需调用 flushInputs() 在帧边界应用。
+     */
+    setLockstep(enabled: boolean): void {
+        this.lockstepMode = enabled
+        if (!enabled) {
+            this.pendingBuffer[1].clear()
+            this.pendingBuffer[2].clear()
+        }
+    }
+
+    /**
+     * 将暂存的键盘事件应用到 buttonStates（在 getInput 采样之前调用）。
+     * 保证 buttonStates 只在帧边界更新，不被 await barrier 期间的键盘事件篡改。
+     */
+    flushInputs(): void {
+        for (const player of [1, 2] as Player[]) {
+            const buf = this.pendingBuffer[player]
+            const controller = this.controllers[player]
+            buf.forEach((state, index) => {
+                controller.setButton(index, state)
+            })
+            buf.clear()
+        }
     }
 
     private setupGampad() {
