@@ -147,13 +147,23 @@ class NESEmulator {
         this.netcodeLoopRunning = true
         let exitReason = 'normal'
 
+        // 帧率控制时钟：用 max 对齐，barrier 等待时间不会累积成追赶
+        let nextFrameTime = performance.now()
+
         try {
             while (this.status === 1 && this.netcodeMode) {
 
+                // 0. 帧率限制：如果距离上一帧还没到 frameDuration，等 rAF 再检查。
+                //    防止高刷新率显示器（120/144Hz）导致游戏加速。
+                //    用 max 对齐而非 += ：barrier 等了 50ms 时 nextFrameTime 推到 now，
+                //    下一轮从此刻重新计时，绝不追赶历史帧。
+                const now = performance.now()
+                if (now < nextFrameTime) {
+                    await this.nextFrameTick()
+                    continue
+                }
+
                 // 1. 帧边界：应用上一轮 await 期间暂存的键盘事件到 buttonStates。
-                //    lockstep 模式下键盘事件不直接写 buttonStates，而是暂存到 buffer，
-                //    只有这里 flush 后 buttonStates 才更新——保证 getInput 采样后
-                //    到 runFrame 之间 buttonStates 不被篡改。
                 this.controller.flushInputs()
 
                 // 2. 采样本地输入并发送给对端
@@ -177,15 +187,19 @@ class NESEmulator {
                     break
                 }
 
-                // 4. 注入远程输入并 runFrame。
-                //    本地玩家的 buttonStates 自步骤1 flush 后就没被改过（键盘事件在 buffer 里），
-                //    所以 runFrame 读到的本地输入 = 步骤2 采样的 localInput = 发给对端的值。
+                // 4. 注入远程输入并 runFrame
                 if (this.netcodeRemotePlayer !== null) {
                     this.nes.setInput(this.netcodeRemotePlayer, remoteInput)
                 }
                 this.nes.runFrame()
 
-                // 5. 让出主线程——让浏览器处理键盘事件（进入 buffer）和渲染
+                // 5. 计算下一帧的最早时刻。取"逻辑下一帧"和"当前时刻"的较大值：
+                //    - 正常情况（barrier 快速返回）：nextFrameTime += frameDuration，限制 60fps
+                //    - barrier 等了较久：now 已超过 nextFrameTime + frameDuration，
+                //      max 取 now，下一帧立即可以跑（不追赶，只是不额外等待）
+                nextFrameTime = Math.max(nextFrameTime + this.frameDuration, performance.now())
+
+                // 6. 让出主线程——让浏览器处理键盘事件（进入 buffer）和渲染
                 await this.nextFrameTick()
             }
         }
