@@ -7,6 +7,7 @@ import GameControls from './emulator/GameControls.vue'
 import SaveStateModal from './emulator/SaveStateModal.vue'
 import SettingsModal from './emulator/SettingsModal.vue'
 import CheatModal from './emulator/CheatModal.vue'
+import NetRoomModal from './emulator/NetRoomModal.vue'
 import { useEmulatorDB } from './emulator/useEmulatorDB'
 import { useGameState } from './emulator/useGameState'
 import { PALETTES, type PaletteName, useEmulatorSettings } from './emulator/useEmulatorSettings'
@@ -55,6 +56,8 @@ const {
     netStatus,
     localPlayer: netLocalPlayer,
     statusText: netStatusText,
+    localIps: netLocalIps,
+    roomPort: netRoomPort,
     attachEmulator: netAttachEmulator,
     disconnect: netDisconnect,
     hostSendSaveState: netHostSendSaveState,
@@ -73,6 +76,8 @@ const netStatusWithPlayer = computed(() => {
 })
 
 const showSaveMenu = ref(false)
+const showNetRoom = ref(false)
+const netRoomMode = ref<'create' | 'join'>('create')
 const isLoading = ref(false)
 const isDownloading = ref(false)
 const isExtracting = ref(false)
@@ -419,6 +424,13 @@ const onWindowMessage = async(e: MessageEvent) => {
         case 'changeViewState':
             await syncWebviewVisibility(Boolean(e.data.visible))
             break
+
+        case 'open-net-room':
+
+            // 扩展端命令触发：打开联机房间弹窗
+            netRoomMode.value = e.data.mode === 'join' ? 'join' : 'create'
+            showNetRoom.value = true
+            break
     }
 }
 
@@ -429,6 +441,24 @@ const onNetRomReceived = async(e: Event) => {
         notify('info', `联机：正在加载 ${name}…`)
         await loadROM(rom, name, false)
     }
+}
+
+// 联机房间弹窗
+function openNetRoom() {
+    netRoomMode.value = 'create'
+    showNetRoom.value = true
+}
+
+function handleNetCreate(port: number) {
+    vscode.postMessage({ type: 'net-create-room', port })
+}
+
+function handleNetJoin(host: string, port: number) {
+    vscode.postMessage({ type: 'net-join-room', host, port })
+}
+
+function handleNetDisconnect() {
+    netDisconnect()
 }
 
 async function loadROM(buffer: Uint8Array, label: string, isLocal: boolean) {
@@ -653,6 +683,7 @@ onBeforeUnmount(() => {
         @open-saves="showSaveMenu = true"
         @open-settings="showSettings = true"
         @open-cheats="showCheatMenu = true"
+        @open-net="openNetRoom"
         @download="downloader.executor()"
       />
     </div>
@@ -692,6 +723,21 @@ onBeforeUnmount(() => {
       @add="handleAddCheat"
       @toggle="handleToggleCheat"
       @remove="handleRemoveCheat"
+    />
+
+    <!-- 联机房间弹窗 -->
+    <NetRoomModal
+      v-if="showNetRoom"
+      :mode="netRoomMode"
+      :net-status="netStatus"
+      :status-text="netStatusText"
+      :local-player="netLocalPlayer"
+      :local-ips="netLocalIps"
+      :room-port="netRoomPort"
+      @close="showNetRoom = false"
+      @create="handleNetCreate"
+      @join="handleNetJoin"
+      @disconnect="handleNetDisconnect"
     />
   </div>
 </template>

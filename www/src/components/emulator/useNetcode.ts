@@ -28,6 +28,10 @@ export function useNetcode(vscode: any) {
     const remotePlayer: Ref<Player | null> = ref(null)
     const statusText = ref('')
 
+    /** 创建房间后回传的本机局域网 IP 列表 + 实际监听端口，供 UI 展示给房主 */
+    const localIps: Ref<string[]> = ref([])
+    const roomPort: Ref<number | null> = ref(null)
+
     /** 本机角色：host=房主(被连接方)，guest=加入方。决定谁发起存档同步。 */
     const role: Ref<'guest' | 'host' | null> = ref(null)
 
@@ -125,6 +129,10 @@ export function useNetcode(vscode: any) {
                 remotePlayer.value = localPlayer.value === 1 ? 2 : 1
                 role.value = 'host'
                 netStatus.value = 'connecting'
+                roomPort.value = data.port
+                if (Array.isArray(data.ips)) {
+                    localIps.value = data.ips
+                }
                 statusText.value = `房间已创建（端口 ${data.port}），等待对手加入…`
                 break
 
@@ -405,6 +413,8 @@ export function useNetcode(vscode: any) {
         statusText.value = reason
         localPlayer.value = null
         remotePlayer.value = null
+        localIps.value = []
+        roomPort.value = null
     }
 
     // ============ 对外动作 ============
@@ -472,6 +482,8 @@ export function useNetcode(vscode: any) {
         localPlayer,
         remotePlayer,
         statusText,
+        localIps,
+        roomPort,
         attachEmulator,
         disconnect,
         hostSendSaveState,

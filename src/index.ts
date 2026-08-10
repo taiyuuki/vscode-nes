@@ -314,7 +314,8 @@ function setupNetcode(context: vscode.ExtensionContext): void {
     panelManager.registerMessageHandler('net-create-room', async data => {
         try {
             const port = await netManager.createRoom(1, data.port || 0)
-            panelManager.postMessage({ type: 'net-room-created', port, localPlayer: 1 })
+            const ips = getLocalIps()
+            panelManager.postMessage({ type: 'net-room-created', port, localPlayer: 1, ips })
             vscode.window.showInformationMessage(`房间已创建，端口 ${port}，等待对手加入…`)
         }
         catch(err) {
@@ -358,61 +359,16 @@ function setupNetcode(context: vscode.ExtensionContext): void {
     })
 
     // ---- 命令：创建房间 / 加入房间 / 离开房间 ----
+    // 命令不再弹 InputBox，而是打开 webview 中的联机房间弹窗
     // 约定：创建者固定为 1P，加入者固定为 2P
-    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.createRoom', async() => {
+    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.createRoom', () => {
         if (!ensurePanelOpen()) return
-
-        const portInput = await vscode.window.showInputBox({
-            prompt:        '监听端口（留空或 0 = 随机端口）',
-            placeHolder:   '例如 19890',
-            validateInput: v => {
-                if (!v) return null
-                const n = Number(v)
-                if (!Number.isInteger(n) || n < 0 || n > 65535) return '请输入 0-65535 的整数'
-
-                return null
-            },
-        })
-        const port = portInput ? Number(portInput) : 0
-
-        try {
-            const actualPort = await netManager.createRoom(1, port)
-            panelManager.postMessage({ type: 'net-room-created', port: actualPort, localPlayer: 1 })
-            vscode.window.showInformationMessage(`房间已创建！你是 1P，端口 ${actualPort}，请把 IP:端口告诉对手。`)
-        }
-        catch(err) {
-            vscode.window.showErrorMessage(`创建房间失败: ${(err as Error).message}`)
-        }
+        panelManager.postMessage({ type: 'open-net-room', mode: 'create' })
     }))
 
-    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.joinRoom', async() => {
+    context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.joinRoom', () => {
         if (!ensurePanelOpen()) return
-
-        const addr = await vscode.window.showInputBox({
-            prompt:        '输入对手的地址（host:port）',
-            placeHolder:   '例如 192.168.1.100:19890',
-            validateInput: v => {
-                const m = v.trim().match(/^(.+):(\d+)$/)
-                if (!m) return '格式应为 host:port'
-                const p = Number(m[2])
-                if (!Number.isInteger(p) || p < 1 || p > 65535) return '端口必须是 1-65535'
-
-                return null
-            },
-        })
-        if (!addr) return
-
-        const [host, portStr] = addr.trim().split(':')
-        const port = Number(portStr)
-
-        try {
-            await netManager.joinRoom(host, port, 2)
-            panelManager.postMessage({ type: 'net-connected', localPlayer: 2, peerPlayer: 1 })
-            vscode.window.showInformationMessage(`已连接到 ${host}:${port}，你是 2P`)
-        }
-        catch(err) {
-            vscode.window.showErrorMessage(`加入房间失败: ${(err as Error).message}`)
-        }
+        panelManager.postMessage({ type: 'open-net-room', mode: 'join' })
     }))
 
     context.subscriptions.push(vscode.commands.registerCommand('vscodeNes.leaveRoom', () => {
@@ -421,6 +377,29 @@ function setupNetcode(context: vscode.ExtensionContext): void {
     }))
 
     context.subscriptions.push({ dispose: () => netManager.dispose() })
+}
+
+/**
+ * 收集本机局域网 IPv4 地址，用于联机 UI 展示给房主。
+ * 过滤回环地址和常见的虚拟网卡（virtualbox / docker / vmware 等）。
+ */
+function getLocalIps(): string[] {
+    const ifaces = os.networkInterfaces()
+    const result: string[] = []
+    const virtualRe = /virtualbox|docker|vmware|veth|hyper-v|wsl/i
+
+    for(const name of Object.keys(ifaces)) {
+        if (virtualRe.test(name)) continue
+        const nets = ifaces[name]
+        if (!nets) continue
+        for(const net of nets) {
+            if (net.family === 'IPv4' && !net.internal) {
+                result.push(net.address)
+            }
+        }
+    }
+
+    return result
 }
 
 /**

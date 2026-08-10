@@ -11,6 +11,7 @@ const emit = defineEmits<{
     openSaves:       []
     openSettings:    []
     openCheats:      []
+    openNet:         []
     download:        []
 }>()
 </script>
@@ -60,6 +61,15 @@ const emit = defineEmits<{
     >
       <span class="icon">🎮</span>
       <span class="label">金手指</span>
+    </button>
+
+    <button
+      class="control-btn"
+      title="联机对战"
+      @click="emit('openNet')"
+    >
+      <span class="icon">📡</span>
+      <span class="label">联机</span>
     </button>
 
     <button
